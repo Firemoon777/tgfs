@@ -66,6 +66,13 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int tgfs_open(const char *path, struct fuse_file_info *fi)
 {
+	string_list* cur = files;
+	while(cur != NULL) {
+		if(strcmp(path, cur->name) == 0) {
+			return 0;
+		}
+		cur = cur->next;
+	}
 	return -ENOENT;
 
 	/*if ((fi->flags & 3) != O_RDONLY)
@@ -77,22 +84,35 @@ static int tgfs_open(const char *path, struct fuse_file_info *fi)
 static int tgfs_read(const char *path, char *buf, size_t size, off_t offset,
 		      struct fuse_file_info *fi)
 {
-	/*
-	size_t len;
 	(void) fi;
-	if(strcmp(path, tgfs_path) != 0)
+	FILE *fp;
+	char p[1035];
+	char* cmd1 = "telegram-cli -W -D -R -C -e 'history ";
+	char* cmd2 = " 1'";
+	printf("Stage 1\n");
+	size_t len = (strlen(path+1) + strlen(cmd1) + strlen(cmd2))*sizeof(char);
+	char* cmd = (char*)malloc(len);
+	strcpy(cmd, cmd1);
+	strcat(cmd, path+1);
+	strcat(cmd, cmd2);
+	
+	printf("Stage 2\n");
+	printf("Exec: %s\n", cmd);
+	printf("Try to access: %s\n", path+1);
+	fp = popen(cmd, "r");
+	printf("Stage 3\n");
+	if(fgets(p, sizeof(p)-1, fp) == NULL) {
 		return -ENOENT;
-
-	len = strlen(tgfs_str);
+	}
+	printf("Content: %s\n", p);
+	len = strlen(p);
 	if (offset < len) {
 		if (offset + size > len)
 			size = len - offset;
-		memcpy(buf, tgfs_str + offset, size);
+		memcpy(buf, p + offset, size);
 	} else
 		size = 0;
-
-	return size;*/
-	return 0;
+	return size;
 }
 
 static struct fuse_operations tgfs_oper = {
@@ -114,6 +134,10 @@ char* getNameFromString(char* src) {
 	for(; i < len; i++, j++) {
 		if(src[i] == ':') 
 			break;
+		if(src[i] == ' ') {
+			result[j] = '_';
+			continue;
+		}
 		result[j] = src[i];
 	}
 	if(i == len) {
