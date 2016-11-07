@@ -1,14 +1,23 @@
 CC=gcc
-CFLAGS= -Wall -Werror -pedantic -c `pkg-config fuse --cflags`
+CFLAGS= -Wall -Werror -pedantic -c -std=c99 `pkg-config fuse --cflags`
 SRC=$(wildcard *.c)
 OBJ=$(SRC:%.c=%.o)
 PROJECT_NAME=tgfs
 
-all: $(OBJ)
-	$(CC) -o $(PROJECT_NAME) $(OBJ) `pkg-config fuse --libs`
+all: $(OBJ) jsmn.o
+	$(CC) -o $(PROJECT_NAME) $(OBJ) jsmn.o `pkg-config fuse --libs`
 
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ $<
 
+jsmn.o: jsmn/jsmn.c
+	$(CC) $(CFLAGS) -o $@ $<
+	
 clean:
 	rm -rf *.o
+
+mount: all
+	./$(PROJECT_NAME) -f -s -o direct_io -o max_read=131072 test
+
+daemon-start:
+	telegram-cli -d -vvvv -S tg_socket --json -L /var/log/telegram-daemon/telegram-cli.log

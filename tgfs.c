@@ -10,14 +10,19 @@
 
 #define FUSE_USE_VERSION 26
 
+#define _XOPEN_SOURCE 600
+
 #include <fuse.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <malloc.h>
+#include <stdlib.h>
 
 #include "string_list.h"
+#include "socket_tasks.h"
+#include "jsmn/jsmn.h"
 
 string_list* files;
 
@@ -87,7 +92,7 @@ static int tgfs_read(const char *path, char *buf, size_t size, off_t offset,
 	(void) fi;
 	FILE *fp;
 	char p[1035];
-	char* cmd1 = "telegram-cli -W -D -R -C -e 'history ";
+	char* cmd1 = "nc localhost 2391 -c 'history ";
 	char* cmd2 = " 1'";
 	printf("Stage 1\n");
 	size_t len = (strlen(path+1) + strlen(cmd1) + strlen(cmd2))*sizeof(char);
@@ -151,20 +156,45 @@ char* getNameFromString(char* src) {
 int main(int argc, char *argv[])
 {
 	files = string_list_init("/config");
-	
-	FILE *fp;
-	char path[1035];
-
-	/* Open the command for reading. */
-	fp = popen("telegram-cli -D -R -C -e 'dialog_list'", "r");
-	if (fp == NULL) {
-		printf("Failed to run command\n" );
-		return 1;
+	int fd = socket_init("tg_socket");
+	socket_send_string(fd, "dialog_list\n", 12);
+	size_t size = socket_read_answer_size(fd);
+	printf("Size: %lu\n", size);
+	char* json = (char*)malloc(size*sizeof(char));
+	socket_read_answer(fd, json, size);
+	jsmn_parser parser;
+	jsmntok_t tokens[10000];
+	printf("result: %s\n", json);
+	//size_t tokens_count = jsmn_parse(&parser, json, size, NULL, 0);
+	//printf("Tokens count: %li\n", tokens_count);
+	//tokens = (jsmntok_t*)malloc(tokens_count*sizeof(jsmntok_t));
+	jsmn_parse(&parser, json, size, tokens, 10000);
+	for(size_t i = 0; i < 5; i++) {
+		switch(tokens[i].type) {
+			case 0:
+				printf("UNDEF ");
+				break;
+			case 1:
+				printf("OBJ ");
+				break;
+			case 2:
+				printf("ARRAY ");
+				break;
+			case 3:
+				printf("STR ");
+				break;
+			case 4:
+				printf("PRIM ");
+				break;
+			default:
+				break;
+		}
+		printf("Start: %i end: %i\n", tokens[i].start, tokens[i].end);
+		for(int j = tokens[i].start; j < tokens[i].end; j++) {
+			printf("%c", json[j]);
+		}
+		printf("<\n");
 	}
-
-	/* Read the output a line at a time - output it. */
-	while (fgets(path, sizeof(path)-1, fp) != NULL) {
-		string_list_add_front(&files, getNameFromString(path));
-	}
+	printf("Mounting...\n");
 	return fuse_main(argc, argv, &tgfs_oper, NULL);
 }

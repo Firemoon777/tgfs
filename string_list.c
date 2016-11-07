@@ -11,10 +11,11 @@ string_list* string_list_init(char* name) {
 }
 
 void string_list_add_front(string_list** l, char* name) {
+	string_list* result;
 	if(name == NULL) {
 		return;
 	}
-	string_list* result = string_list_init(name);
+	result = string_list_init(name);
 	result->next = *l;
 	*l = result;
 }
