@@ -1,13 +1,3 @@
-/*
-  FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
-
-  This program can be distributed under the terms of the GNU GPL.
-  See the file COPYING.
-
-  gcc -Wall `pkg-config fuse --cflags --libs` hello.c -o hello
-*/
-
 #define FUSE_USE_VERSION 26
 
 #define _XOPEN_SOURCE 600
@@ -23,8 +13,9 @@
 #include "string_list.h"
 #include "socket_tasks.h"
 #include "jsmn/jsmn.h"
+#include "tg_data.h"
 
-string_list* files;
+tg_data_t tg;
 
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
@@ -34,18 +25,24 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 		stbuf->st_nlink = 2;
 		return 0;
 	} else {
-		string_list* cur = files;
-		while(cur != NULL) {
-			if(strcmp(path, cur->name) == 0) {
-				stbuf->st_mode = S_IFREG | 0444;
-				stbuf->st_nlink = 1;
-				stbuf->st_size = strlen(cur->name);
-				return 0;
+		for(size_t i = 0; i < tg.peers_count; i++) {
+			size_t len = strlen(tg.peers[i].peer_name);
+			if(strncmp(tg.peers[i].peer_name, path + 1, len) == 0) {
+				if(len == strlen(path + 1)) {
+					stbuf->st_mode = S_IFDIR | 0755;
+					stbuf->st_nlink = 2;
+					stbuf->st_mtime = 90000;
+					return 0;
+				} else if(strcmp(path + 1 + len, "test.msg")) {
+					stbuf->st_mode = S_IFREG | 0755;
+					stbuf->st_nlink = 1;
+					stbuf->st_mtime = 90000;
+					return 0;
+				}
+				return -ENOENT;
 			}
-			cur = cur->next;
 		}
 	}
-
 	return -ENOENT;
 }
 
@@ -55,29 +52,29 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	(void) offset;
 	(void) fi;
 
-	if (strcmp(path, "/") != 0)
-		return -ENOENT;
-
-	filler(buf, ".", NULL, 0);
-	filler(buf, "..", NULL, 0);
-	string_list* cur = files;
-	while(cur != NULL) {
-		filler(buf, cur->name + 1, NULL, 0);
-		cur = cur->next;
+	if (strcmp(path, "/") == 0) {
+		filler(buf, ".", NULL, 0);
+		filler(buf, "..", NULL, 0);
+		for(size_t i = 0; i < tg.peers_count; i++) {
+			filler(buf, tg.peers[i].peer_name, NULL, 0); 
+		}
+		return 0;
 	}
-
-	return 0;
+	
+	/*for(size_t i = 0; i < peers_size; i++) {
+		if(strcmp(peers[i].peer_name, path + 1) == 0) {
+			filler(buf, ".", NULL, 0);
+			filler(buf, "..", NULL, 0);
+			filler(buf, "test.msg", NULL, 0);
+			return 0;
+		}
+	}*/
+	return -ENOENT;
 }
 
 static int tgfs_open(const char *path, struct fuse_file_info *fi)
 {
-	string_list* cur = files;
-	while(cur != NULL) {
-		if(strcmp(path, cur->name) == 0) {
-			return 0;
-		}
-		cur = cur->next;
-	}
+
 	return -ENOENT;
 
 	/*if ((fi->flags & 3) != O_RDONLY)
@@ -90,27 +87,9 @@ static int tgfs_read(const char *path, char *buf, size_t size, off_t offset,
 		      struct fuse_file_info *fi)
 {
 	(void) fi;
-	FILE *fp;
 	char p[1035];
-	char* cmd1 = "nc localhost 2391 -c 'history ";
-	char* cmd2 = " 1'";
-	printf("Stage 1\n");
-	size_t len = (strlen(path+1) + strlen(cmd1) + strlen(cmd2))*sizeof(char);
-	char* cmd = (char*)malloc(len);
-	strcpy(cmd, cmd1);
-	strcat(cmd, path+1);
-	strcat(cmd, cmd2);
 	
-	printf("Stage 2\n");
-	printf("Exec: %s\n", cmd);
-	printf("Try to access: %s\n", path+1);
-	fp = popen(cmd, "r");
-	printf("Stage 3\n");
-	if(fgets(p, sizeof(p)-1, fp) == NULL) {
-		return -ENOENT;
-	}
-	printf("Content: %s\n", p);
-	len = strlen(p);
+	size_t len = strlen(p);
 	if (offset < len) {
 		if (offset + size > len)
 			size = len - offset;
@@ -155,46 +134,6 @@ char* getNameFromString(char* src) {
 
 int main(int argc, char *argv[])
 {
-	files = string_list_init("/config");
-	int fd = socket_init("tg_socket");
-	socket_send_string(fd, "dialog_list\n", 12);
-	size_t size = socket_read_answer_size(fd);
-	printf("Size: %lu\n", size);
-	char* json = (char*)malloc(size*sizeof(char));
-	socket_read_answer(fd, json, size);
-	jsmn_parser parser;
-	jsmntok_t tokens[10000];
-	printf("result: %s\n", json);
-	//size_t tokens_count = jsmn_parse(&parser, json, size, NULL, 0);
-	//printf("Tokens count: %li\n", tokens_count);
-	//tokens = (jsmntok_t*)malloc(tokens_count*sizeof(jsmntok_t));
-	jsmn_parse(&parser, json, size, tokens, 10000);
-	for(size_t i = 0; i < 5; i++) {
-		switch(tokens[i].type) {
-			case 0:
-				printf("UNDEF ");
-				break;
-			case 1:
-				printf("OBJ ");
-				break;
-			case 2:
-				printf("ARRAY ");
-				break;
-			case 3:
-				printf("STR ");
-				break;
-			case 4:
-				printf("PRIM ");
-				break;
-			default:
-				break;
-		}
-		printf("Start: %i end: %i\n", tokens[i].start, tokens[i].end);
-		for(int j = tokens[i].start; j < tokens[i].end; j++) {
-			printf("%c", json[j]);
-		}
-		printf("<\n");
-	}
-	printf("Mounting...\n");
+	tg = tg_init();
 	return fuse_main(argc, argv, &tgfs_oper, NULL);
 }

@@ -1,0 +1,3 @@
+[submodule "tg"]
+	path = tg
+	url = https://github.com/Firemoon777/tg.git
