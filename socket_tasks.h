@@ -2,13 +2,10 @@
 
 #define _SOCKET_TASKS_H_ 
 
-int socket_init(const char* name);
+void socket_init();
 
-size_t socket_read_answer_size(int fd);
-
-void socket_send_string(int fd, char* string, size_t size);
-
-void socket_read_answer(int fd, char* data, size_t size);
+int socket_read_data(char** data, size_t* len);
+ssize_t socket_send_string(char* string, size_t size);
 
 #endif
 
