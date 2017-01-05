@@ -2,15 +2,38 @@
 
 #define _TG_DATA_H_
 
-typedef struct {
-	char* peer_name;
-} tg_data_peer_t;
+#include <time.h>
 
 typedef struct {
-	tg_data_peer_t* peers;
+	char id[33];
+	char peer_type[10];
+	char* peer_id;
+	char* print_name;
+	time_t last_seen;
+} tg_peer_t;
+
+typedef struct {
+	tg_peer_t* peers;
+} tg_dialogs;
+
+typedef struct {
+	tg_peer_t* peers;
 	size_t peers_count;
 } tg_data_t;
 
-tg_data_t tg_init();
+typedef struct {
+	char* id;
+	char* print_name;
+	size_t size;
+} tg_file_t;
+
+#ifdef DEBUG
+
+void tg_print_peer_t(tg_peer_t* peer);
+
+#endif
+
+int tg_init();
+tg_file_t* tg_get_msg_photo(tg_data_t* peer);
 
 #endif

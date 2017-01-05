@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -Wall -Werror -pedantic -c -std=c99 `pkg-config fuse --cflags`
+CFLAGS= -Wall -Werror -pedantic -c -std=c99 `pkg-config fuse --cflags` -O3 -D DEBUG
 SRC=$(wildcard *.c)
 OBJ=$(SRC:%.c=%.o)
 PROJECT_NAME=tgfs
@@ -17,7 +17,7 @@ clean:
 	rm -rf *.o
 
 mount: all
-	./$(PROJECT_NAME) -o debug -f -s -o direct_io test
+	./$(PROJECT_NAME) -f -s -o direct_io test
 
 daemon-start:
 	telegram-cli -d -vvvv -S tg_socket --json -L /var/log/telegram-daemon/telegram-cli.log &

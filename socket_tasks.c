@@ -7,7 +7,6 @@
 #include <unistd.h>
 
 #include "socket_tasks.h"
-#include "string_list.h"
 
 #define SOCKET_NAME "tg_socket"
 
@@ -43,8 +42,8 @@ static size_t socket_read_answer_size(int fd) {
 	size_t len = 7;
 	char* t = (char*)malloc(len*sizeof(char));
 	char digit = 0;
-	printf("Read status: %li\n", recv(fd, t, len, 0));
-	printf("Buffer: %s\n", t);
+	if(recv(fd, t, len, 0) < 0) 
+		return -1;
 	while(1) {
 		read(fd, &digit, 1);
 		if(digit == '\n')

@@ -10,16 +10,13 @@
 #include <malloc.h>
 #include <stdlib.h>
 
-#include "string_list.h"
 #include "socket_tasks.h"
 #include "jsmn/jsmn.h"
 #include "tg_data.h"
-
-tg_data_t tg;
-
+ /*
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
-	memset(stbuf, 0, sizeof(struct stat));
+	 memset(stbuf, 0, sizeof(struct stat));
 	if (strcmp(path, "/") == 0) {
 		stbuf->st_mode = S_IFDIR | 0755;
 		stbuf->st_nlink = 2;
@@ -33,8 +30,34 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 					stbuf->st_nlink = 2;
 					stbuf->st_mtime = 90000;
 					return 0;
-				} else if(strcmp(path + 1 + len, "test.msg")) {
-					stbuf->st_mode = S_IFREG | 0755;
+				} else if(strncmp(path + 2 + len, "Photo", 5) == 0) {
+					if(strlen(path) == len + 2 + 5) {
+						stbuf->st_mode = S_IFDIR | 0755;
+						stbuf->st_nlink = 2;
+						stbuf->st_mtime = 90000;
+					} else {
+						stbuf->st_mode = S_IFREG | 0644;
+						stbuf->st_nlink = 2;
+						stbuf->st_mtime = 90000;
+					}
+					return 0;
+				} else if(strcmp(path + 2 + len, "Video") == 0) {
+					stbuf->st_mode = S_IFDIR | 0755;
+					stbuf->st_nlink = 2;
+					stbuf->st_mtime = 90000;
+					return 0;
+				} else if(strcmp(path + 2 + len, "Audio") == 0) {
+					stbuf->st_mode = S_IFDIR | 0755;
+					stbuf->st_nlink = 2;
+					stbuf->st_mtime = 90000;
+					return 0;
+				} else if(strcmp(path + 2 + len, "Voice") == 0) {
+					stbuf->st_mode = S_IFDIR | 0755;
+					stbuf->st_nlink = 2;
+					stbuf->st_mtime = 90000;
+					return 0;
+				} else if(strcmp(path + 2 + len, "test.msg")  == 0) {
+					stbuf->st_mode = S_IFREG | 0644;
 					stbuf->st_nlink = 1;
 					stbuf->st_mtime = 90000;
 					return 0;
@@ -55,20 +78,31 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	if (strcmp(path, "/") == 0) {
 		filler(buf, ".", NULL, 0);
 		filler(buf, "..", NULL, 0);
-		for(size_t i = 0; i < tg.peers_count; i++) {
+		 for(size_t i = 0; i < tg.peers_count; i++) {
 			filler(buf, tg.peers[i].peer_name, NULL, 0); 
 		}
 		return 0;
 	}
 	
-	/*for(size_t i = 0; i < peers_size; i++) {
-		if(strcmp(peers[i].peer_name, path + 1) == 0) {
-			filler(buf, ".", NULL, 0);
-			filler(buf, "..", NULL, 0);
-			filler(buf, "test.msg", NULL, 0);
-			return 0;
+	 for(size_t i = 0; i < tg.peers_count; i++) {
+		if(strncmp(tg.peers[i].peer_name, path + 1, strlen(tg.peers[i].peer_name)) == 0) {
+			if(strcmp(path + 2 + strlen(tg.peers[i].peer_name), "Photo") == 0) {
+				filler(buf, ".", NULL, 0);
+				filler(buf, "..", NULL, 0);
+				tg_get_msg_photo(&tg.peers[i]);
+				return 0;
+			} else {
+				filler(buf, ".", NULL, 0);
+				filler(buf, "..", NULL, 0);
+				filler(buf, "test.msg", NULL, 0);
+				filler(buf, "Photo", NULL, 0);
+				filler(buf, "Video", NULL, 0);
+				filler(buf, "Audio", NULL, 0);
+				filler(buf, "Voice", NULL, 0);
+				return 0;
+			}
 		}
-	}*/
+	}
 	return -ENOENT;
 }
 
@@ -77,8 +111,8 @@ static int tgfs_open(const char *path, struct fuse_file_info *fi)
 
 	return -ENOENT;
 
-	/*if ((fi->flags & 3) != O_RDONLY)
-		return -EACCES;*/
+	 if ((fi->flags & 3) != O_RDONLY)
+		return -EACCES;
 
 	return 0;
 }
@@ -130,10 +164,11 @@ char* getNameFromString(char* src) {
 	}
 	result[j+1] = 0;
 	return result;
-}
+}*/
 
-int main(int argc, char *argv[])
-{
-	tg = tg_init();
-	return fuse_main(argc, argv, &tgfs_oper, NULL);
+int main(int argc, char *argv[]) {
+	
+	socket_init();
+	tg_init();
+	return 0; /*fuse_main(argc, argv, &tgfs_oper, NULL);*/
 }
