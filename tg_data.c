@@ -31,7 +31,7 @@ void tg_print_peer_t(tg_peer_t* peer) {
 	fprintf(stderr, "\tpeer_type: '%s'\n", peer->peer_type);
 	fprintf(stderr, "\tpeer_id: '%s'\n", peer->peer_id);
 	fprintf(stderr, "\tprint_name: '%s'\n", peer->print_name);
-	/*fprintf(stderr, "id: %s\n", peer->print_name);*/
+	fprintf(stderr, "\tlast_seen: %li\n", peer->last_seen);
 }
 
 #endif
