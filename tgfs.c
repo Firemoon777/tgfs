@@ -20,96 +20,56 @@ extern tg_data_t tg;
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
 	memset(stbuf, 0, sizeof(struct stat));
-	char* str = (char*)malloc(strlen(path));
-	strcpy(str, path);
+	
 	stbuf->st_uid = getuid();
 	stbuf->st_gid = getgid();
+	
 	if (strcmp(path, "/") == 0) {
 		stbuf->st_mode = S_IFDIR | 0500;
 		stbuf->st_nlink = 2;
 		return 0;
-	} else {
-		char *p = strtok (str, "/");
-		char *array[10];
-		int i = 0, k = 0;
-		while (p != NULL)
-		{
-			k++;
-			array[i++] = p;
-			p = strtok (NULL, "/");
+	}
+	
+	printf("Path: '%s'\n", path);
+	size_t c[10];
+	size_t n = 0;
+	for(size_t i = 0; i < strlen(path); i++) {
+		if(path[i] == '/') {
+			c[n] = i + 1;
+			n++;
 		}
-		for (i = 0; i < k; ++i) 
-			if(array[i] != NULL)
-				printf("%i: %s\n", i, array[i]);
-		tg_peer_t* peer = NULL;
-		if(k > 0) {
-			for(size_t i = 0; i < tg.peers_count; i++) {
-				if(strcmp(tg.peers[i].print_name, array[0]) == 0) {
-					peer = tg.peers + i;
-				}
-			}
-			if(peer == NULL) {
-				return -ENOENT;
-			}
-		}
-		free(str);
-		if(k > 1) {
-			
-		} else {
-			/* Root dir item */
+	}
+	c[n] = strlen(path) + 1;
+	
+	for(int i = 0; i <= n; i++) {
+		printf("%li ", c[i]);
+	}
+	printf("\n");
+	
+	tg_peer_t* peer = tg_find_peer_by_name(path + 1, c[1] - c[0] - 1);
+	if(peer == NULL)
+		return -ENOENT;
+	
+	if(n == 1) {
+		/* Root dir item */
+		stbuf->st_mode = S_IFDIR | 0500;
+		stbuf->st_nlink = 2;
+		stbuf->st_atime = peer->last_seen;
+		stbuf->st_ctime = peer->last_seen;
+		stbuf->st_mtime = peer->last_seen;
+		stbuf->st_size = peer->msg;
+		//stbuf->st_blksize = peer->msg;
+		return 0;
+	}
+	
+	if(n == 2) {
+		if(path[c[1]] == 'P' || path[c[1]] == 'A') {
 			stbuf->st_mode = S_IFDIR | 0501;
 			stbuf->st_nlink = 2;
-			stbuf->st_atime = peer->last_seen;
-			stbuf->st_ctime = peer->last_seen;
-			stbuf->st_mtime = peer->last_seen;
-			stbuf->st_size = peer->msg;
-			//stbuf->st_blksize = peer->msg;
 			return 0;
 		}
-		/*for(size_t i = 0; i < tg.peers_count; i++) {
-			size_t len = strlen(tg.peers[i].peer_name);
-			if(strncmp(tg.peers[i].peer_name, path + 1, len) == 0) {
-				if(len == strlen(path + 1)) {
-					stbuf->st_mode = S_IFDIR | 0755;
-					stbuf->st_nlink = 2;
-					stbuf->st_mtime = 90000;
-					return 0;
-				} else if(strncmp(path + 2 + len, "Photo", 5) == 0) {
-					if(strlen(path) == len + 2 + 5) {
-						stbuf->st_mode = S_IFDIR | 0755;
-						stbuf->st_nlink = 2;
-						stbuf->st_mtime = 90000;
-					} else {
-						stbuf->st_mode = S_IFREG | 0644;
-						stbuf->st_nlink = 2;
-						stbuf->st_mtime = 90000;
-					}
-					return 0;
-				} else if(strcmp(path + 2 + len, "Video") == 0) {
-					stbuf->st_mode = S_IFDIR | 0755;
-					stbuf->st_nlink = 2;
-					stbuf->st_mtime = 90000;
-					return 0;
-				} else if(strcmp(path + 2 + len, "Audio") == 0) {
-					stbuf->st_mode = S_IFDIR | 0755;
-					stbuf->st_nlink = 2;
-					stbuf->st_mtime = 90000;
-					return 0;
-				} else if(strcmp(path + 2 + len, "Voice") == 0) {
-					stbuf->st_mode = S_IFDIR | 0755;
-					stbuf->st_nlink = 2;
-					stbuf->st_mtime = 90000;
-					return 0;
-				} else if(strcmp(path + 2 + len, "test.msg")  == 0) {
-					stbuf->st_mode = S_IFREG | 0644;
-					stbuf->st_nlink = 1;
-					stbuf->st_mtime = 90000;
-					return 0;
-				}
-				return -ENOENT;
-			}
-		}*/
 	}
+	
 	return -ENOENT;
 }
 
@@ -128,6 +88,18 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			}
 		}
 		return 0;
+	}
+	for(size_t i = 0; i < tg.peers_count; i++) {
+		size_t len = strlen(tg.peers[i].print_name);
+		if(strcmp(tg.peers[i].print_name, path + 1) == 0) {
+			if(len == strlen(path + 1)) {
+				filler(buf, ".", NULL, 0);
+				filler(buf, "..", NULL, 0);
+				filler(buf, "Photo", NULL, 0);
+				filler(buf, "Audio", NULL, 0);
+				return 0;
+			} 
+		}
 	}
 	return -ENOENT;
 }

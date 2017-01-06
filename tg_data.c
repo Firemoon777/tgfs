@@ -71,6 +71,15 @@ void tg_peer_search_msg_count(tg_peer_t* peer) {
 	}
 }
 
+tg_peer_t* tg_find_peer_by_name(const char* name, size_t len) {
+	for(size_t i = 0; i < tg.peers_count; i++) {
+		if(strncmp(name, tg.peers[i].print_name, len) == 0) {
+			return tg.peers + i;
+		}
+	}
+	return NULL;
+}
+
 void tg_reload_peer_date() {
 	
 }
