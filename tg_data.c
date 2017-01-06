@@ -29,6 +29,13 @@ int tg_init() {
 
 #ifdef DEBUG
 
+void tg_print_msg_t(tg_msg_t* msg) {
+	fprintf(stderr, "Msg:\n");
+	fprintf(stderr, "\tid: '%s'\n", msg->id);
+	fprintf(stderr, "\tcaption: '%s'\n", msg->caption);
+	fprintf(stderr, "\ttimestamp: %li\n", msg->timestamp);
+}
+
 void tg_print_peer_t(tg_peer_t* peer) {
 	fprintf(stderr, "Peer:\n");
 	fprintf(stderr, "\tid: '%s'\n", peer->id);
@@ -36,7 +43,7 @@ void tg_print_peer_t(tg_peer_t* peer) {
 	fprintf(stderr, "\tpeer_id: '%s'\n", peer->peer_id);
 	fprintf(stderr, "\tprint_name: '%s'\n", peer->print_name);
 	fprintf(stderr, "\tlast_seen: %li\n", peer->last_seen);
-	fprintf(stderr, "\tmsg: %li\n", peer->msg);
+	fprintf(stderr, "\ttotal_message_count: %li\n", peer->total_message_count);
 }
 
 #endif
@@ -67,7 +74,7 @@ void tg_peer_search_msg_count(tg_peer_t* peer) {
 		}
 		free(str);
 		printf("Answer: %li\n", r);
-		peer->msg = r;
+		peer->total_message_count = r;
 	}
 }
 
@@ -80,62 +87,24 @@ tg_peer_t* tg_find_peer_by_name(const char* name, size_t len) {
 	return NULL;
 }
 
+int tg_get_msg_photo(tg_peer_t* peer) {
+	char* json;
+	size_t len;
+	int result;
+	char* str = (char*)malloc(256 * sizeof(char));
+	
+	sprintf(str, "search %s 1\n", peer->print_name);
+	socket_send_string(str, strlen(str));
+	socket_read_data(&json, &len);
+	printf("Answer: %s\n", json);
+	
+	result = json_parse_messages(json, len, peer);
+	
+	free(str);
+	free(json);
+	return result;
+}
+
 void tg_reload_peer_date() {
 	
 }
-
-/*
-
-tg_file_t* tg_get_msg_photo(tg_data_peer_t* peer) {
-	int fd = socket_init(SOCKET_NAME);
-	tg_file_t* files = NULL;
-	char* str = (char*)malloc(256 * sizeof(char));
-	char* string = (char*)malloc(255*sizeof(char));
-	sprintf(str, "search %s 1\n", peer->peer_name);
-	socket_send_string(fd, str, strlen(str));
-	
-	size_t size = socket_read_answer_size(fd);
-	
-	char* json = (char*)malloc(size*sizeof(char));
-	socket_read_answer(fd, json, size);
-	
-	jsmn_parser parser;
-	jsmntok_t *tokens;
-	jsmn_init(&parser);
-	
-	size_t tokens_count = jsmn_parse(&parser, json, size, NULL, 0);
-	printf("Msg token count: %li\n", tokens_count);
-	jsmn_init(&parser);
-	tokens = (jsmntok_t*)malloc(tokens_count*sizeof(jsmntok_t));
-	jsmn_parse(&parser, json, size, tokens, 10000);
-	
-	files = (tg_file_t*)malloc(tokens[0].size * sizeof(tg_file_t));
-	
-	for(int i = 1; i < tokens_count; i++) {
-		if(tokens[i].type != JSMN_STRING)
-			continue;
-		len = tokens[i].end - tokens[i].start;
-		strncpy(string, json + tokens[i].start, len);
-		string[len] = 0;
-		if(strcmp(string, "id") == 0) {
-			i++;
-			len = tokens[i].end - tokens[i].start;
-			strncpy(string, json + tokens[i].start, len);
-			string[len] = 0;
-			if(len != 0 && string[0] != '$') {
-				peers[peers_size].peer_name = (char*)malloc(len*sizeof(char));
-				strcpy(peers[peers_size].peer_name, string);
-				files_size++;
-			}
-			
-		}
-	}
-	
-	close(fd);
-	return files;
-}
-
-tg_file_t* tg_get_msg_photo(tg_data_peer_t* peer) {
-	return NULL;
-}
-*/

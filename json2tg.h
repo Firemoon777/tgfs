@@ -5,5 +5,5 @@
 #define _JSON2TG_TASKS_H_ 
 
 int json_parse_dialog_list(char* json, size_t size, tg_peer_t** peers, size_t* peers_count);
-
+int json_parse_messages(char* json, size_t size, tg_peer_t* peer);
 #endif

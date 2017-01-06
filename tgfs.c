@@ -57,19 +57,29 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 		stbuf->st_atime = peer->last_seen;
 		stbuf->st_ctime = peer->last_seen;
 		stbuf->st_mtime = peer->last_seen;
-		stbuf->st_size = peer->msg;
+		stbuf->st_size = peer->message_count;
 		//stbuf->st_blksize = peer->msg;
 		return 0;
 	}
 	
 	if(n == 2) {
 		if(path[c[1]] == 'P' || path[c[1]] == 'A') {
-			stbuf->st_mode = S_IFDIR | 0501;
+			stbuf->st_mode = S_IFDIR | 0500;
 			stbuf->st_nlink = 2;
 			return 0;
 		}
 	}
 	
+	if(n == 3) {
+		for(size_t i = 0; i < peer->message_count; i++) {
+			if(strncmp(peer->messages[i].caption, path + c[2], c[3] - c[2] - 5) == 0) {
+				stbuf->st_mode = S_IFREG | 0400;
+				stbuf->st_nlink = 1;
+				stbuf->st_mtime = peer->messages[i].timestamp;
+				return 0;
+			}
+		}
+	}
 	return -ENOENT;
 }
 
@@ -89,24 +99,49 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		}
 		return 0;
 	}
-	for(size_t i = 0; i < tg.peers_count; i++) {
-		size_t len = strlen(tg.peers[i].print_name);
-		if(strcmp(tg.peers[i].print_name, path + 1) == 0) {
-			if(len == strlen(path + 1)) {
-				filler(buf, ".", NULL, 0);
-				filler(buf, "..", NULL, 0);
-				filler(buf, "Photo", NULL, 0);
-				filler(buf, "Audio", NULL, 0);
-				return 0;
-			} 
+	
+	size_t c[10];
+	size_t n = 0;
+	for(size_t i = 0; i < strlen(path); i++) {
+		if(path[i] == '/') {
+			c[n] = i + 1;
+			n++;
 		}
 	}
+	c[n] = strlen(path) + 1;
+	
+	if(n == 1) {
+		filler(buf, ".", NULL, 0);
+		filler(buf, "..", NULL, 0);
+		filler(buf, "Photo", NULL, 0);
+		filler(buf, "Audio", NULL, 0);
+		return 0;
+	}	
+	tg_peer_t* peer = tg_find_peer_by_name(path + 1, c[1] - c[0] - 1);
+	if(n == 2) {
+		if(path[c[1]] == 'P') {
+			filler(buf, ".", NULL, 0);
+			filler(buf, "..", NULL, 0);
+			tg_get_msg_photo(peer);
+			for(size_t i = 0; i < peer->message_count; i++) {	
+				char a[255];
+				if(strlen(peer->messages[i].caption)) {
+					sprintf(a, "%s.jpg", peer->messages[i].caption);
+				} else {
+					sprintf(a, "untitled-%4.4li.jpg", i);
+					strcpy(peer->messages[i].caption, a);
+				}
+				filler(buf, a, NULL, 0);
+			}
+			return 0;
+		}
+	}
+	
 	return -ENOENT;
 }
 
 static int tgfs_open(const char *path, struct fuse_file_info *fi)
 {
-
 	return -ENOENT;
 
 	 if ((fi->flags & 3) != O_RDONLY)
