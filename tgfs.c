@@ -9,20 +9,64 @@
 #include <fcntl.h>
 #include <malloc.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "socket_tasks.h"
 #include "jsmn/jsmn.h"
 #include "tg_data.h"
- /*
+
+extern tg_data_t tg;
+
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
-	 memset(stbuf, 0, sizeof(struct stat));
+	memset(stbuf, 0, sizeof(struct stat));
+	char* str = (char*)malloc(strlen(path));
+	strcpy(str, path);
+	stbuf->st_uid = getuid();
+	stbuf->st_gid = getgid();
 	if (strcmp(path, "/") == 0) {
-		stbuf->st_mode = S_IFDIR | 0755;
+		stbuf->st_mode = S_IFDIR | 0500;
 		stbuf->st_nlink = 2;
 		return 0;
 	} else {
-		for(size_t i = 0; i < tg.peers_count; i++) {
+		char *p = strtok (str, "/");
+		char *array[10];
+		int i = 0, k = 0;
+		while (p != NULL)
+		{
+			k++;
+			array[i++] = p;
+			p = strtok (NULL, "/");
+		}
+		for (i = 0; i < k; ++i) 
+			if(array[i] != NULL)
+				printf("%i: %s\n", i, array[i]);
+		tg_peer_t* peer = NULL;
+		if(k > 0) {
+			for(size_t i = 0; i < tg.peers_count; i++) {
+				if(strcmp(tg.peers[i].print_name, array[0]) == 0) {
+					peer = tg.peers + i;
+				}
+			}
+			if(peer == NULL) {
+				return -ENOENT;
+			}
+		}
+		free(str);
+		if(k > 1) {
+			
+		} else {
+			/* Root dir item */
+			stbuf->st_mode = S_IFDIR | 0501;
+			stbuf->st_nlink = 2;
+			stbuf->st_atime = peer->last_seen;
+			stbuf->st_ctime = peer->last_seen;
+			stbuf->st_mtime = peer->last_seen;
+			stbuf->st_size = peer->msg;
+			//stbuf->st_blksize = peer->msg;
+			return 0;
+		}
+		/*for(size_t i = 0; i < tg.peers_count; i++) {
 			size_t len = strlen(tg.peers[i].peer_name);
 			if(strncmp(tg.peers[i].peer_name, path + 1, len) == 0) {
 				if(len == strlen(path + 1)) {
@@ -64,7 +108,7 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 				}
 				return -ENOENT;
 			}
-		}
+		}*/
 	}
 	return -ENOENT;
 }
@@ -78,30 +122,12 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	if (strcmp(path, "/") == 0) {
 		filler(buf, ".", NULL, 0);
 		filler(buf, "..", NULL, 0);
-		 for(size_t i = 0; i < tg.peers_count; i++) {
-			filler(buf, tg.peers[i].peer_name, NULL, 0); 
-		}
-		return 0;
-	}
-	
-	 for(size_t i = 0; i < tg.peers_count; i++) {
-		if(strncmp(tg.peers[i].peer_name, path + 1, strlen(tg.peers[i].peer_name)) == 0) {
-			if(strcmp(path + 2 + strlen(tg.peers[i].peer_name), "Photo") == 0) {
-				filler(buf, ".", NULL, 0);
-				filler(buf, "..", NULL, 0);
-				tg_get_msg_photo(&tg.peers[i]);
-				return 0;
-			} else {
-				filler(buf, ".", NULL, 0);
-				filler(buf, "..", NULL, 0);
-				filler(buf, "test.msg", NULL, 0);
-				filler(buf, "Photo", NULL, 0);
-				filler(buf, "Video", NULL, 0);
-				filler(buf, "Audio", NULL, 0);
-				filler(buf, "Voice", NULL, 0);
-				return 0;
+		for(size_t i = 0; i < tg.peers_count; i++) {
+			if(strlen(tg.peers[i].print_name)) {
+				filler(buf, tg.peers[i].print_name, NULL, 0); 
 			}
 		}
+		return 0;
 	}
 	return -ENOENT;
 }
@@ -164,11 +190,11 @@ char* getNameFromString(char* src) {
 	}
 	result[j+1] = 0;
 	return result;
-}*/
+}
 
 int main(int argc, char *argv[]) {
-	
 	socket_init();
 	tg_init();
-	return 0; /*fuse_main(argc, argv, &tgfs_oper, NULL);*/
+	tg_print_peer_t(&tg.peers[tg.peers_count - 4]);
+	return fuse_main(argc, argv, &tgfs_oper, NULL);
 }

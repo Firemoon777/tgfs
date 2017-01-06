@@ -43,7 +43,6 @@ static void json_parse_peer(char* json, jsmntok_t* tokens, size_t* pos, tg_peer_
 		}
 	}
 	*pos += 2*tokens[*pos].size;
-	tg_print_peer_t(peer);
 }
 
 int json_parse_dialog_list(char* json, size_t size, tg_peer_t** peers, size_t* peers_count) {

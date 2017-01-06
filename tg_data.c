@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE
 #include <stdio.h>
 #include <malloc.h>
 #include <stdlib.h>
@@ -19,7 +20,10 @@ int tg_init() {
 	socket_read_data(&json, &len);
 	if(json_parse_dialog_list(json, len, &tg.peers, &tg.peers_count)) 
 		return 1;
-
+	free(json);
+	/*for(size_t i = 0; i < tg.peers_count; i++) {
+		tg_peer_search_msg_count(&tg.peers[i]); 
+	}*/
 	return 0;
 }
 
@@ -32,9 +36,44 @@ void tg_print_peer_t(tg_peer_t* peer) {
 	fprintf(stderr, "\tpeer_id: '%s'\n", peer->peer_id);
 	fprintf(stderr, "\tprint_name: '%s'\n", peer->print_name);
 	fprintf(stderr, "\tlast_seen: %li\n", peer->last_seen);
+	fprintf(stderr, "\tmsg: %li\n", peer->msg);
 }
 
 #endif
+
+void tg_peer_search_msg_count(tg_peer_t* peer) {
+	if(strlen(peer->print_name) > 0) {
+		printf("Try to count peer %s\n", peer->print_name);
+		size_t l = 0, r = 130000;
+		size_t middle;
+		char* str = (char*)malloc(255*sizeof(char));
+		char* data;
+		size_t size = 0;
+		while(l + 1 < r) {
+			middle = (l + r) / 2;
+			sprintf(str, "history %s 1 %li\n", peer->print_name, middle);
+			printf("debug: %s", str);
+			socket_send_string(str, strlen(str));
+			socket_read_data(&data, &size); 
+			printf("(%li < %li) -> %li\n", l, r, size);
+			fflush(stdout);
+			if(size == 3) { 
+				r = middle;
+			} else {
+				l = middle;
+			}
+			free(data);
+			//usleep(400000);
+		}
+		free(str);
+		printf("Answer: %li\n", r);
+		peer->msg = r;
+	}
+}
+
+void tg_reload_peer_date() {
+	
+}
 
 /*
 

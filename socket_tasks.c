@@ -44,20 +44,32 @@ static size_t socket_read_answer_size(int fd) {
 	char digit = 0;
 	if(recv(fd, t, len, 0) < 0) 
 		return -1;
+	//printf("Buffer: '%s'\n", t);
 	while(1) {
 		read(fd, &digit, 1);
+		if(digit < '0' || digit > '9') {
+			//printf("ALARM! ");
+		}
+		//printf("%c\n", digit);
 		if(digit == '\n')
 			break;
 		result = result * 10 + (digit - '0');
 	} 
+	//printf("Total: %li\n", result);
 	free(t);
+	return result;
+}
+
+size_t socket_read_only_size() {
+	size_t result = socket_read_answer_size(socket_fd);
+	recv(socket_fd, NULL, result + 4, 0);
 	return result;
 }
 
 int socket_read_data(char** data, size_t* len) {
 	*len = socket_read_answer_size(socket_fd);
 	*data = (char*)malloc(*len*sizeof(char));
-	recv(socket_fd, *data, *len, 0);
+	recv(socket_fd, *data, (*len)+1, 0);
 	return 0;
 }
 

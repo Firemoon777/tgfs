@@ -10,6 +10,7 @@ typedef struct {
 	char* peer_id;
 	char* print_name;
 	time_t last_seen;
+	size_t msg;
 } tg_peer_t;
 
 typedef struct {
@@ -35,5 +36,6 @@ void tg_print_peer_t(tg_peer_t* peer);
 
 int tg_init();
 tg_file_t* tg_get_msg_photo(tg_data_t* peer);
+void tg_peer_search_msg_count(tg_peer_t* peer);
 
 #endif
