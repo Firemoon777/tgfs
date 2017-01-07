@@ -30,7 +30,6 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 		return 0;
 	}
 	
-	printf("Path: '%s'\n", path);
 	size_t c[10];
 	size_t n = 0;
 	for(size_t i = 0; i < strlen(path); i++) {
@@ -41,24 +40,23 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 	}
 	c[n] = strlen(path) + 1;
 	
-	for(int i = 0; i <= n; i++) {
-		printf("%li ", c[i]);
-	}
-	printf("\n");
-	
 	tg_peer_t* peer = tg_find_peer_by_name(path + 1, c[1] - c[0] - 1);
-	if(peer == NULL)
+	if(peer == NULL) {
 		return -ENOENT;
+	}
 	
 	if(n == 1) {
 		/* Root dir item */
-		stbuf->st_mode = S_IFDIR | 0500;
-		stbuf->st_nlink = 2;
+		if(peer->peer_type != TG_CHANNEL) {
+			stbuf->st_mode = S_IFDIR | 0500;
+		} else {
+			stbuf->st_mode = S_IFDIR | 0400;
+		}
+		stbuf->st_nlink = 0;
 		stbuf->st_atime = peer->last_seen;
 		stbuf->st_ctime = peer->last_seen;
 		stbuf->st_mtime = peer->last_seen;
 		stbuf->st_size = peer->message_count;
-		//stbuf->st_blksize = peer->msg;
 		return 0;
 	}
 	
@@ -173,35 +171,8 @@ static struct fuse_operations tgfs_oper = {
 	.read		= tgfs_read,
 };
 
-char* getNameFromString(char* src) {
-	size_t i, j = 1;
-	size_t len = strlen(src);
-	char* result;
-	if(len < 15)
-		return NULL;
-	result = (char*)malloc(sizeof(char)*len);
-	i = (src[4] == ' ') ? 5 : 8;
-	result[0] = '/';
-	for(; i < len; i++, j++) {
-		if(src[i] == ':') 
-			break;
-		if(src[i] == ' ') {
-			result[j] = '_';
-			continue;
-		}
-		result[j] = src[i];
-	}
-	if(i == len) {
-		free(result);
-		return NULL;
-	}
-	result[j+1] = 0;
-	return result;
-}
-
 int main(int argc, char *argv[]) {
 	socket_init();
 	tg_init();
-	exit(0);
 	return fuse_main(argc, argv, &tgfs_oper, NULL);
 }

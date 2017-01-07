@@ -13,11 +13,11 @@
 tg_data_t tg;
 
 /* djb2 */
-size_t tg_string_hash(char* str) {
-	size_t hash = 5381;
+uint32_t tg_string_hash(const char* str) {
+	uint32_t hash = 5381;
 	int c;
 
-	while ((c = *str++) == 0)
+	while ((c = *str++) != 0)
 		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 
 	return hash;
@@ -104,8 +104,14 @@ void tg_peer_search_msg_count(tg_peer_t* peer) {
 }
 
 tg_peer_t* tg_find_peer_by_name(const char* name, size_t len) {
+	char* buff = (char*)malloc((len + 1) * sizeof(char));
+	strncpy(buff, name, len);
+	buff[len] = 0;
+	uint32_t hash = tg_string_hash(buff);
+	free(buff);
+	
 	for(size_t i = 0; i < tg.peers_count; i++) {
-		if(strncmp(name, tg.peers[i].print_name, len) == 0) {
+		if(hash == tg.peers[i].print_name_hash) {
 			return tg.peers + i;
 		}
 	}

@@ -57,6 +57,7 @@ static void json_parse_peer(char* json, jsmntok_t* tokens, size_t* pos, tg_peer_
 			peer->print_name = (char*)malloc((inner_size + 1) * sizeof(char));
 			strncpy(peer->print_name, json + tokens[r+1].start, inner_size);
 			peer->print_name[inner_size] = 0;
+			peer->print_name_hash = tg_string_hash(peer->print_name);
 			i++;
 			r += 2;
 			continue;
@@ -84,7 +85,6 @@ static void json_parse_peer(char* json, jsmntok_t* tokens, size_t* pos, tg_peer_
 		i++;
 		r += 2;
 	}
-	tg_print_peer_t(peer);
 	*pos = r - 1;
 }
 
@@ -180,6 +180,5 @@ int json_parse_messages(char* json, size_t size, tg_peer_t* peer) {
 			peer->message_count++;
 		}
 	}
-	printf("ДЖЕКПОТ!\n");
 	return 0;
 }
