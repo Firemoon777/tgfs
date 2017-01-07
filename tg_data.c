@@ -12,6 +12,17 @@
 
 tg_data_t tg;
 
+/* djb2 */
+size_t tg_string_hash(char* str) {
+	size_t hash = 5381;
+	int c;
+
+	while ((c = *str++) == 0)
+		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+	return hash;
+}
+
 int tg_init() {
 	char* json;
 	size_t len;
@@ -39,8 +50,22 @@ void tg_print_msg_t(tg_msg_t* msg) {
 void tg_print_peer_t(tg_peer_t* peer) {
 	fprintf(stderr, "Peer:\n");
 	fprintf(stderr, "\tid: '%s'\n", peer->id);
-	fprintf(stderr, "\tpeer_type: '%s'\n", peer->peer_type);
-	fprintf(stderr, "\tpeer_id: '%s'\n", peer->peer_id);
+	switch(peer->peer_type) {
+		case TG_USER:
+			fprintf(stderr, "\tpeer_type: user\n");
+			break;
+		case TG_CHAT:
+			fprintf(stderr, "\tpeer_type: chat\n");
+			break;
+		case TG_CHANNEL:
+			fprintf(stderr, "\tpeer_type: channel\n");
+			break;
+		default:
+			fprintf(stderr, "\tpeer_type: unknown\n");
+			break;
+	}
+	
+	fprintf(stderr, "\tpeer_id: %lu\n", peer->peer_id);
 	fprintf(stderr, "\tprint_name: '%s'\n", peer->print_name);
 	fprintf(stderr, "\tlast_seen: %li\n", peer->last_seen);
 	fprintf(stderr, "\ttotal_message_count: %li\n", peer->total_message_count);

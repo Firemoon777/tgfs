@@ -202,6 +202,6 @@ char* getNameFromString(char* src) {
 int main(int argc, char *argv[]) {
 	socket_init();
 	tg_init();
-	tg_print_peer_t(&tg.peers[tg.peers_count - 4]);
+	exit(0);
 	return fuse_main(argc, argv, &tgfs_oper, NULL);
 }

@@ -62,7 +62,7 @@ static size_t socket_read_answer_size(int fd) {
 
 size_t socket_read_only_size() {
 	size_t result = socket_read_answer_size(socket_fd);
-	recv(socket_fd, NULL, result + 4, 0);
+	recv(socket_fd, NULL, result + 1, 0);
 	return result;
 }
 

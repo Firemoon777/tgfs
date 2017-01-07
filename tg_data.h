@@ -3,6 +3,7 @@
 #define _TG_DATA_H_
 
 #include <time.h>
+#include <stdint.h>
 
 typedef struct {
 	char id[49];
@@ -10,10 +11,17 @@ typedef struct {
 	time_t timestamp;
 } tg_msg_t;
 
+typedef enum {
+	TG_UNKNOWN = -1,
+	TG_USER = 0,
+	TG_CHAT = 1,
+	TG_CHANNEL = 2
+} tg_peer_type_t;
+
 typedef struct {
 	char id[33];
-	char peer_type[10];
-	char* peer_id;
+	tg_peer_type_t peer_type;
+	uint64_t peer_id;
 	char* print_name;
 	time_t last_seen;
 	size_t total_message_count;
@@ -38,5 +46,7 @@ int tg_init();
 tg_peer_t* tg_find_peer_by_name(const char* name, size_t len);
 int tg_get_msg_photo(tg_peer_t* peer);
 void tg_peer_search_msg_count(tg_peer_t* peer);
+
+size_t tg_string_hash(char* str);
 
 #endif

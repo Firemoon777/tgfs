@@ -22,28 +22,70 @@ static time_t json_datetime_to_posix(char* json) {
 }
 
 static void json_parse_peer(char* json, jsmntok_t* tokens, size_t* pos, tg_peer_t* peer) {	
-	for(size_t i = *pos; i < (*pos) + 2*tokens[*pos].size + 1; i++) {
-		size_t len = tokens[i].end - tokens[i].start;
-		char* start = json + tokens[i].start;
-		if(len == 0)
+	size_t r = *pos + 1, i = 0;
+	
+	while(i < tokens[*pos].size) {	
+		size_t token_size = tokens[r].end - tokens[r].start;
+		size_t inner_size = tokens[r+1].end - tokens[r+1].start;
+		
+		if(strncmp("admin", json + tokens[r].start, tokens[r].end - tokens[r].start) == 0) {
+			r += 2*tokens[r+1].size + 2;
+			i++;
 			continue;
-		if(strncmp(start, "id", len) == 0) {
-			if(strlen(peer->id) == 0) {
-				i++;
-				strncpy(peer->id, json + tokens[i].start, tokens[i].end - tokens[i].start);
-			}
-		} else if(strncmp(start, "print_name", len) == 0) {
-			i++;
-			size_t length = tokens[i].end - tokens[i].start;
-			peer->print_name = (char*)malloc(length*sizeof(char));
-			strncpy(peer->print_name, json + tokens[i].start, length);
-			peer->print_name[length] = 0;
-		} else if(strncmp(start, "when", len) == 0) {
-			i++;
-			peer->last_seen = json_datetime_to_posix(json + tokens[i].start);
 		}
+		if(strncmp("peer_type", json + tokens[r].start, token_size) == 0) {
+			switch(json[tokens[r+1].start + 3]) {
+				case 'r':
+					peer->peer_type	= TG_USER;
+					break;
+				case 't':
+					peer->peer_type	= TG_CHAT;
+					break;
+				case 'n':
+					peer->peer_type	= TG_CHANNEL;
+					break;
+				default:
+					peer->peer_type	= TG_UNKNOWN;
+					break;
+				
+			} 
+			i++;
+			r += 2;
+			continue;
+		}
+		if(strncmp("print_name", json + tokens[r].start, token_size) == 0) {
+			peer->print_name = (char*)malloc((inner_size + 1) * sizeof(char));
+			strncpy(peer->print_name, json + tokens[r+1].start, inner_size);
+			peer->print_name[inner_size] = 0;
+			i++;
+			r += 2;
+			continue;
+		}
+		if(strncmp("when", json + tokens[r].start, token_size) == 0) {
+			peer->last_seen = json_datetime_to_posix(json + tokens[r+1].start);
+			i++;
+			r += 2;
+			continue;
+		}
+		if(strncmp("id", json + tokens[r].start, token_size) == 0) {
+			strncpy(peer->id, json + tokens[r+1].start, inner_size);
+			i++;
+			r += 2;
+			continue;
+		}
+		if(strncmp("peer_id", json + tokens[r].start, token_size) == 0) {
+			peer->peer_id = strtol(json  + tokens[r+1].start, NULL, 10);
+			i++;
+			r += 2;
+			continue;
+		}
+		
+		
+		i++;
+		r += 2;
 	}
-	*pos += 2*tokens[*pos].size;
+	tg_print_peer_t(peer);
+	*pos = r - 1;
 }
 
 static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t* msg) {
@@ -84,7 +126,7 @@ static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t*
 			msg->timestamp = strtol(time, NULL, 10);
 		}
 	}
-	//tg_print_msg_t(msg);
+	tg_print_msg_t(msg);
 }
 
 int json_parse_dialog_list(char* json, size_t size, tg_peer_t** peers, size_t* peers_count) {
@@ -97,18 +139,20 @@ int json_parse_dialog_list(char* json, size_t size, tg_peer_t** peers, size_t* p
 	jsmn_init(&parser);
 	tokens = (jsmntok_t*)malloc(tokens_count*sizeof(jsmntok_t));
 	jsmn_parse(&parser, json, size, tokens, tokens_count);
+	
 #ifdef DEBUG
 	printf("json_parse_dialog_list(): Dialog count: %i\n", tokens[0].size);
 #endif
 	
-	*peers = (tg_peer_t*)malloc(tokens[0].size * sizeof(tg_peer_t));
-	size_t array_end = 0;
+	if(*peers == NULL) {
+		*peers = (tg_peer_t*)malloc(tokens[0].size * sizeof(tg_peer_t));
+	} else if(tokens[0].size != *peers_count) {
+		*peers = (tg_peer_t*)realloc(*peers, tokens[0].size * sizeof(tg_peer_t));
+	}
+	
 	for(size_t i = 1; i < tokens_count; i++) {
-		if(tokens[i].start > array_end) {
-			array_end = tokens[i].end;
-			json_parse_peer(json, tokens, &i, &(*peers)[*peers_count]);
-			(*peers_count)++;
-		}
+		json_parse_peer(json, tokens, &i, &(*peers)[*peers_count]);
+		(*peers_count)++;
 	}
 	return 0;
 }
@@ -136,5 +180,6 @@ int json_parse_messages(char* json, size_t size, tg_peer_t* peer) {
 			peer->message_count++;
 		}
 	}
+	printf("ДЖЕКПОТ!\n");
 	return 0;
 }
