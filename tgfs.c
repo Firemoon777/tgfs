@@ -23,6 +23,7 @@
 extern tg_data_t tg;
 
 int tgfs_fd = -1;
+char tgfs_buff[1000];
 
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
@@ -32,6 +33,14 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 	stbuf->st_uid = getuid();
 	stbuf->st_gid = getgid();
 	
+	printf("buff: %s\n", tgfs_buff);
+	
+	if(strcmp(path, tgfs_buff) == 0) {
+		printf("Ok\n");
+		stbuf->st_mode = S_IFREG | 0200;
+		stbuf->st_nlink = 1;
+		return 0;
+	}
 	
 	if (strcmp(path, "/") == 0) {
 		stbuf->st_mode = S_IFDIR | 0500;
@@ -194,6 +203,7 @@ static int tgfs_create(const char *path, mode_t mode,
 						
 	(void) fi;
 	printf("create(): %s\n", path);
+	strcpy(tgfs_buff, path);
 	remove("/tmp/tgfs_tmp.jpg");
 	tgfs_fd = open("/tmp/tgfs_tmp.jpg",  O_WRONLY | O_CREAT);
 	printf(" = %i\n", tgfs_fd);
@@ -215,9 +225,12 @@ int tgfs_release(const char *path, struct fuse_file_info *fi) {
 	tgfs_fd = -1;
 	char buff[1000];
 	char req[1000];
-	strncpy(buff, path + 1, strlen(path) - 7);
-	buff[strlen(path) - 7] = 0;
-	sprintf(req, "post_photo %s %s %s\n", buff, "/tmp/tgfs_tmp.jpg", path);
+	size_t s = 1;
+	while(path[s] != '/')
+		s++;
+	strncpy(buff, path + 1, s - 1);
+	buff[s] = 0;
+	sprintf(req, "post_photo %s %s %s\n", buff, "/tmp/tgfs_tmp.jpg", path + s + 1);
 	printf("req: %s\n", req);
 	socket_send_string(req, strlen(req));
 	return 0;
