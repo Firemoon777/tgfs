@@ -126,7 +126,7 @@ static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t*
 			msg->timestamp = strtol(time, NULL, 10);
 		}
 	}
-	tg_print_msg_t(msg);
+	//tg_print_msg_t(msg);
 }
 
 int json_parse_dialog_list(char* json, size_t size, tg_peer_t** peers, size_t* peers_count) {

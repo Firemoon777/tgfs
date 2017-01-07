@@ -127,7 +127,7 @@ int tg_get_msg_photo(tg_peer_t* peer) {
 	sprintf(str, "search %s 1\n", peer->print_name);
 	socket_send_string(str, strlen(str));
 	socket_read_data(&json, &len);
-	printf("Answer: %s\n", json);
+	//printf("Answer: %s\n", json);
 	
 	result = json_parse_messages(json, len, peer);
 	
