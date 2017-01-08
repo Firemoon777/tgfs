@@ -173,7 +173,55 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int tgfs_open(const char *path, struct fuse_file_info *fi)
 {
-	printf("open(): %s", path);
+	printf("open(): %s\n", path);
+	
+	size_t c[10];
+	size_t n = 0;
+	for(size_t i = 0; i < strlen(path); i++) {
+		if(path[i] == '/') {
+			c[n] = i + 1;
+			n++;
+		}
+	}
+	c[n] = strlen(path) + 1;
+	
+	tg_peer_t* peer = tg_find_peer_by_name(path + 1, c[1] - c[0] - 1);
+	if(peer == NULL) {
+		return -ENOENT;
+	}
+	if(n == 3) {
+		char name[255];
+		jsmn_parser parser;
+		jsmntok_t* tokens = (jsmntok_t*)malloc(1000);
+		jsmn_init(&parser);
+		strcpy(name, path + strlen(path) - 17);
+		printf("Peer: %s\n", peer->print_name);
+		printf("Filename: %s\n", name);
+		for(size_t i = 0; i < peer->message_count; i++) {
+			if(strcmp(peer->messages[i].caption, name) == 0) {
+				sprintf(name, "load_photo %s\n", peer->messages[i].id);
+				printf("string: %s", name);
+				socket_send_string(name, strlen(name));
+				char* json;
+				size_t len;
+				socket_read_data(&json, &len);
+				printf("Answer: %s\n", json);
+				
+				
+				jsmn_parse(&parser, json, len, tokens, 10);
+				printf("tokens: %i\n", tokens[0].size); 
+				size_t size = tokens[2].end - tokens[2].start;
+				strncpy(name, json + tokens[2].start, size);
+				name[size] = 0;
+				printf("file: %s\n", name);
+				tgfs_fd = open(name, O_RDONLY);
+				return tgfs_fd > 0 ? 0 : -ENOENT;
+			}
+		}
+	}
+	
+	return -ENOENT;
+	
 	tgfs_fd = open("/tmp/tgfs_tmp.jpg",  O_WRONLY | O_CREAT);
 	printf(" = %i\n", tgfs_fd);
 	return 0;
@@ -188,7 +236,7 @@ static int tgfs_read(const char *path, char *buf, size_t size, off_t offset,
 {
 	printf("read(): %s\n", path);
 	(void) fi;
-	char p[1035];
+	/*char p[1035];
 	
 	size_t len = strlen(p);
 	if (offset < len) {
@@ -196,8 +244,8 @@ static int tgfs_read(const char *path, char *buf, size_t size, off_t offset,
 			size = len - offset;
 		memcpy(buf, p + offset, size);
 	} else
-		size = 0;
-	return size;
+		size = 0;*/
+	return pread(tgfs_fd, buf, size, offset);
 }
 
 static int tgfs_create(const char *path, mode_t mode,
@@ -225,16 +273,29 @@ int tgfs_release(const char *path, struct fuse_file_info *fi) {
 	printf("release:  %s\n", path);
 	close(tgfs_fd);
 	tgfs_fd = -1;
-	char buff[1000];
-	char req[1000];
-	size_t s = 1;
-	while(path[s] != '/')
-		s++;
-	strncpy(buff, path + 1, s - 1);
-	buff[s] = 0;
-	sprintf(req, "post_photo %s %s %s\n", buff, "/tmp/tgfs_tmp.jpg", path + s + 1);
-	printf("req: %s\n", req);
-	//socket_send_string(req, strlen(req));
+	
+	//size_t c[10];
+	size_t n = 0;
+	for(size_t i = 0; i < strlen(path); i++) {
+		if(path[i] == '/') {
+			//c[n] = i + 1;
+			n++;
+		}
+	}
+	//c[n] = strlen(path) + 1;
+	
+	if(n == 2) {
+		char buff[1000];
+		char req[1000];
+		size_t s = 1;
+		while(path[s] != '/')
+			s++;
+		strncpy(buff, path + 1, s - 1);
+		buff[s] = 0;
+		sprintf(req, "post_photo %s %s %s\n", buff, "/tmp/tgfs_tmp.jpg", path + s + 1);
+		printf("req: %s\n", req);
+		//socket_send_string(req, strlen(req));
+	}
 	return 0;
 }
 

@@ -17,7 +17,6 @@ clean:
 	rm -rf *.o
 
 mount: all
-	./$(PROJECT_NAME) -f -s -o direct_io test
-
+	./$(PROJECT_NAME) -f -s -o direct_io test -o use_ino #-o debug
 daemon-start:
 	telegram-cli -d -vvvv -S tg_socket --json -L /var/log/telegram-daemon/telegram-cli.log &
