@@ -118,7 +118,7 @@ tg_peer_t* tg_find_peer_by_name(const char* name, size_t len) {
 	return NULL;
 }
 
-int tg_get_msg_photo(tg_peer_t* peer) {
+int tg_search_msg(tg_peer_t* peer, int type, char* request) {
 	char* json;
 	size_t len;
 	int result;
@@ -127,7 +127,7 @@ int tg_get_msg_photo(tg_peer_t* peer) {
 	}
 	char* str = (char*)malloc(256 * sizeof(char));
 	
-	sprintf(str, "search %s 1\n", peer->print_name);
+	sprintf(str, "search %s %i %s\n", peer->print_name, type, request);
 	socket_send_string(str, strlen(str));
 	socket_read_data(&json, &len);
 	//printf("Answer: %s\n", json);

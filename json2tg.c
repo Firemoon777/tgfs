@@ -88,6 +88,48 @@ static void json_parse_peer(char* json, jsmntok_t* tokens, size_t* pos, tg_peer_
 	*pos = r - 1;
 }
 
+static void json_parse_media(char* json, jsmntok_t* tokens, size_t pos, tg_msg_t* msg) {
+	char a[10000];
+	strncpy(a, json + tokens[pos].start, tokens[pos].end - tokens[pos].start);
+	a[tokens[pos].end - tokens[pos].start] = 0;
+	printf("json: %s\n", a);
+	
+	size_t i = 0, r = pos + 1;
+	while(i < tokens[pos].size) {
+		size_t token_size = tokens[r].end - tokens[r].start;
+		size_t inner_size = tokens[r + 1].end - tokens[r + 1].start;
+		
+		char m[1000];
+		strncpy(m, json + tokens[r].start, token_size);
+		m[token_size] = 0;
+		printf("token: %s = ", m);
+		strncpy(m, json + tokens[r+1].start, inner_size);
+		m[inner_size] = 0;
+		printf("%s\n", m);
+		
+		if(strncmp(json + tokens[r].start, "caption", token_size) == 0) {
+			printf("Caption found!\n");
+			msg->caption = (char*)malloc((inner_size + 1) * sizeof(char));
+			strncpy(msg->caption, json + tokens[r + 1].start, inner_size);
+			msg->caption[inner_size] = 0;
+			i++;
+			r += 2;
+			continue; 
+		}
+		if(strncmp(json + tokens[r].start, "size", token_size) == 0) {
+			char a[1000];
+			strncpy(a, json + tokens[r + 1].start, inner_size);
+			msg->size = strtol(a, NULL, 10);
+			i++;
+			r += 2;
+			continue; 
+		}
+		
+		i++;
+		r += 2;
+	}
+}
+
 static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t* msg) {
 	size_t r = *pos + 1, i = 0;
 	/*printf("start with r = %li, i = %li, size = %i\n", r - 1, i, tokens[*pos].size);
@@ -112,6 +154,7 @@ static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t*
 		printf("%s\n", m);*/
 		
 		if(strncmp("media", json + tokens[r].start, token_size) == 0) {
+			json_parse_media(json, tokens, r + 1, msg);
 			r += 2*tokens[r+1].size + 2;
 			i++;
 			continue;

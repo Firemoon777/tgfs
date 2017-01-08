@@ -72,9 +72,9 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 	if(n == 1) {
 		/* Root dir item */
 		if(peer->peer_type != TG_CHANNEL) {
-			stbuf->st_mode = S_IFDIR | 0500;
+			stbuf->st_mode = S_IFDIR | 0700;
 		} else {
-			stbuf->st_mode = S_IFDIR | 0400;
+			stbuf->st_mode = S_IFDIR | 0500;
 		}
 		stbuf->st_nlink = 0;
 		stbuf->st_atime = peer->last_seen;
@@ -104,6 +104,7 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 				stbuf->st_mode = S_IFREG | 0400;
 				stbuf->st_nlink = 1;
 				stbuf->st_mtime = peer->messages[i].timestamp;
+				stbuf->st_size = peer->messages[i].size;
 				return 0;
 			}
 		}
@@ -143,7 +144,6 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		filler(buf, "..", NULL, 0);
 		filler(buf, "Photo", NULL, 0);
 		filler(buf, "Audio", NULL, 0);
-		filler(buf, "input", NULL, 0);
 		return 0;
 	}	
 	tg_peer_t* peer = tg_find_peer_by_name(path + 1, c[1] - c[0] - 1);
@@ -151,7 +151,7 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		if(path[c[1]] == 'P') {
 			filler(buf, ".", NULL, 0);
 			filler(buf, "..", NULL, 0);
-			tg_get_msg_photo(peer);
+			tg_search_msg(peer, TG_MEDIA_PHOTO, "");
 			printf("GOT\n");
 			for(size_t i = 0; i < peer->message_count; i++) {	
 				char a[255];
@@ -159,6 +159,24 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 					sprintf(a, "%s.jpg", peer->messages[i].caption);
 				} else {
 					sprintf(a, "untitled-%4.4li.jpg", i);
+					peer->messages[i].caption = (char*)malloc(sizeof(a));
+					strcpy(peer->messages[i].caption, a);
+				}
+				filler(buf, a, NULL, 0);
+			}
+			return 0;
+		}
+		if(path[c[1]] == 'A') {
+			filler(buf, ".", NULL, 0);
+			filler(buf, "..", NULL, 0);
+			tg_search_msg(peer, TG_MEDIA_AUDIO_DOCUMENT, "");
+			printf("GOT\n");
+			for(size_t i = 0; i < peer->message_count; i++) {	
+				char a[255];
+				if(peer->messages[i].caption) {
+					sprintf(a, "%s", peer->messages[i].caption);
+				} else {
+					sprintf(a, "untitled-%4.4li.mp3", i);
 					peer->messages[i].caption = (char*)malloc(sizeof(a));
 					strcpy(peer->messages[i].caption, a);
 				}

@@ -5,10 +5,16 @@
 #include <time.h>
 #include <stdint.h>
 
+typedef enum {
+	TG_MEDIA_PHOTO = 1,
+	TG_MEDIA_AUDIO_DOCUMENT = 7
+} tg_media_type;
+
 typedef struct {
 	char id[50];
 	char* caption;
 	time_t timestamp;
+	size_t size;
 } tg_msg_t;
 
 typedef enum {
@@ -47,7 +53,7 @@ void tg_print_msg_t(tg_msg_t* msg);
 
 int tg_init();
 tg_peer_t* tg_find_peer_by_name(const char* name, size_t len);
-int tg_get_msg_photo(tg_peer_t* peer);
+int tg_search_msg(tg_peer_t* peer, int type, char* request);
 void tg_peer_search_msg_count(tg_peer_t* peer);
 
 uint32_t tg_string_hash(const char* str);
