@@ -28,7 +28,7 @@ static void json_parse_peer(char* json, jsmntok_t* tokens, size_t* pos, tg_peer_
 		size_t token_size = tokens[r].end - tokens[r].start;
 		size_t inner_size = tokens[r+1].end - tokens[r+1].start;
 		
-		if(strncmp("admin", json + tokens[r].start, tokens[r].end - tokens[r].start) == 0) {
+		if(strncmp("admin", json + tokens[r].start, token_size) == 0) {
 			r += 2*tokens[r+1].size + 2;
 			i++;
 			continue;
@@ -89,7 +89,78 @@ static void json_parse_peer(char* json, jsmntok_t* tokens, size_t* pos, tg_peer_
 }
 
 static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t* msg) {
-	size_t bounds = 2*tokens[*pos].size + 1;
+	size_t r = *pos + 1, i = 0;
+	/*printf("start with r = %li, i = %li, size = %i\n", r - 1, i, tokens[*pos].size);
+	char a[10000];
+	strncpy(a, json + tokens[*pos].start, tokens[*pos].end - tokens[*pos].start);
+	a[tokens[*pos].end - tokens[*pos].start] = 0;
+	printf("json: %s\n", a);*/
+	
+	msg->caption = NULL;
+	while(i < tokens[*pos].size) {	
+		size_t token_size = tokens[r].end - tokens[r].start;
+		size_t inner_size = tokens[r+1].end - tokens[r+1].start;
+		
+		//printf("r = %li, i = %li\n", r, i);
+		
+		/*char m[1000];
+		strncpy(m, json + tokens[r].start, token_size);
+		m[token_size] = 0;
+		printf("token: %s = ", m);
+		strncpy(m, json + tokens[r+1].start, inner_size);
+		m[inner_size] = 0;
+		printf("%s\n", m);*/
+		
+		if(strncmp("media", json + tokens[r].start, token_size) == 0) {
+			r += 2*tokens[r+1].size + 2;
+			i++;
+			continue;
+		}
+		
+		if(strncmp("fwd_from", json + tokens[r].start, token_size) == 0 ||
+		   strncmp("from", json + tokens[r].start, token_size) == 0 ||
+		   strncmp("to", json + tokens[r].start, token_size) == 0) {
+			//printf("Skipping %2.2s\n", json + tokens[r].start);
+			r += 2*tokens[r+1].size + 2;
+			i++;
+			continue;
+		}
+		if(strncmp("id", json + tokens[r].start, token_size) == 0) {
+			strncpy(msg->id, json + tokens[r+1].start, inner_size);
+			msg->id[inner_size] = 0;
+			i++;
+			r += 2;
+			continue;
+		}
+		if(strncmp("caption", json + tokens[r].start, token_size) == 0) {
+			msg->caption = (char*)malloc((inner_size + 1) * sizeof(char));
+			msg->caption[inner_size] = 0;
+			strncpy(msg->caption, json + tokens[r+1].start, inner_size);
+			i++;
+			r += 2;
+			continue;
+		}
+		if(strncmp("date", json + tokens[r].start, token_size) == 0) {
+			char* buff = (char*)malloc((inner_size + 1) * sizeof(char));
+			strncpy(buff, json + tokens[r+1].start, inner_size);
+			buff[inner_size] = 0;
+			msg->timestamp = strtol(buff, NULL, 10);
+			free(buff);
+			i++;
+			r += 2;
+			continue;
+		}
+		
+		i++;
+		r += 2;
+	}
+	*pos = r - 1;
+	tg_print_msg_t(msg);
+	/*printf("done with r = %li, i = %li\n", r - 1, i);
+	
+	printf("\n\n\n\n\n");*/
+	
+	/*size_t bounds = 2*tokens[*pos].size + 1;
 	msg->caption = NULL;
 	for(size_t i = *pos + 1; tokens[i].end < tokens[*pos].end; i++) {
 		size_t len = tokens[i].end - tokens[i].start;
@@ -125,8 +196,8 @@ static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t*
 			//printf("Time: %s\n", time);
 			msg->timestamp = strtol(time, NULL, 10);
 		}
-	}
-	//tg_print_msg_t(msg);
+	}*/
+	//
 }
 
 int json_parse_dialog_list(char* json, size_t size, tg_peer_t** peers, size_t* peers_count) {
@@ -172,13 +243,9 @@ int json_parse_messages(char* json, size_t size, tg_peer_t* peer) {
 #endif
 	peer->message_count = 0;
 	peer->messages	= (tg_msg_t*)malloc(tokens_count * sizeof(tg_msg_t));
-	size_t array_end = 0;
 	for(size_t i = 1; i < tokens_count; i++) {
-		if(tokens[i].start > array_end) {
-			array_end = tokens[i].end;
-			json_parse_msg(json, tokens, &i, &peer->messages[peer->message_count]);
-			peer->message_count++;
-		}
+		json_parse_msg(json, tokens, &i, &peer->messages[peer->message_count]);
+		peer->message_count++;
 	}
 	return 0;
 }

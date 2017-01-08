@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 typedef struct {
-	char id[49];
+	char id[50];
 	char* caption;
 	time_t timestamp;
 } tg_msg_t;

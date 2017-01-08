@@ -152,12 +152,14 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			filler(buf, ".", NULL, 0);
 			filler(buf, "..", NULL, 0);
 			tg_get_msg_photo(peer);
+			printf("GOT\n");
 			for(size_t i = 0; i < peer->message_count; i++) {	
 				char a[255];
-				if(strlen(peer->messages[i].caption)) {
+				if(peer->messages[i].caption) {
 					sprintf(a, "%s.jpg", peer->messages[i].caption);
 				} else {
 					sprintf(a, "untitled-%4.4li.jpg", i);
+					peer->messages[i].caption = (char*)malloc(sizeof(a));
 					strcpy(peer->messages[i].caption, a);
 				}
 				filler(buf, a, NULL, 0);
@@ -232,7 +234,7 @@ int tgfs_release(const char *path, struct fuse_file_info *fi) {
 	buff[s] = 0;
 	sprintf(req, "post_photo %s %s %s\n", buff, "/tmp/tgfs_tmp.jpg", path + s + 1);
 	printf("req: %s\n", req);
-	socket_send_string(req, strlen(req));
+	//socket_send_string(req, strlen(req));
 	return 0;
 }
 

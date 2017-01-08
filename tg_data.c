@@ -122,6 +122,9 @@ int tg_get_msg_photo(tg_peer_t* peer) {
 	char* json;
 	size_t len;
 	int result;
+	if(peer->messages) {
+		free(peer->messages);
+	}
 	char* str = (char*)malloc(256 * sizeof(char));
 	
 	sprintf(str, "search %s 1\n", peer->print_name);
@@ -130,7 +133,6 @@ int tg_get_msg_photo(tg_peer_t* peer) {
 	//printf("Answer: %s\n", json);
 	
 	result = json_parse_messages(json, len, peer);
-	
 	free(str);
 	free(json);
 	return result;
