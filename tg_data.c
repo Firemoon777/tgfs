@@ -44,6 +44,7 @@ void tg_print_msg_t(tg_msg_t* msg) {
 	fprintf(stderr, "Msg:\n");
 	fprintf(stderr, "\tid: '%s'\n", msg->id);
 	fprintf(stderr, "\tcaption: '%s'\n", msg->caption);
+	fprintf(stderr, "\tsize: '%li'\n", msg->size);
 	fprintf(stderr, "\ttimestamp: %li\n", msg->timestamp);
 }
 
