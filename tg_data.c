@@ -213,12 +213,20 @@ int tg_search_msg(tg_peer_t* peer, int type, char* request) {
 	int result;
 	char* str = (char*)malloc(256 * sizeof(char));
 	
-	sprintf(str, "search %s %i %s\n", peer->print_name, type, request);
-	socket_send_string(str, strlen(str));
-	socket_read_data(&json, &len);
-	//printf("Answer: %s\n", json);
 	
-	result = json_parse_messages(json, len, peer, type);
+	//printf("Answer: %s\n", json);
+	int count = 100;
+	int offset = 0;
+	result = 2;
+	while(result > 1) {
+		sprintf(str, "search %s %i %i 0 0 %i %s\n", peer->print_name, type, count, offset, request);
+		socket_send_string(str, strlen(str));
+		socket_read_data(&json, &len);
+		
+		result = json_parse_messages(json, len, peer, type);
+		printf("tg_search_msg(%i) = %i\n", offset, result);
+		offset += count;
+	}
 	free(str);
 	free(json);
 	return result;
