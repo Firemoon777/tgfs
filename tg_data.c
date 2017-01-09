@@ -44,6 +44,7 @@ void tg_print_msg_t(tg_msg_t* msg) {
 	fprintf(stderr, "Msg:\n");
 	fprintf(stderr, "\tid: '%s'\n", msg->id);
 	fprintf(stderr, "\tcaption: '%s'\n", msg->caption);
+	fprintf(stderr, "\tcaption_hash: '%u'\n", msg->caption_hash);
 	fprintf(stderr, "\tsize: '%li'\n", msg->size);
 	fprintf(stderr, "\ttimestamp: %li\n", msg->timestamp);
 }
@@ -119,13 +120,97 @@ tg_peer_t* tg_find_peer_by_name(const char* name, size_t len) {
 	return NULL;
 }
 
+int tg_get_msg_array_by_media_type(tg_msg_t** msg, size_t* size, tg_peer_t* peer, int media_type) {
+	switch(media_type) {
+		case TG_MEDIA_AUDIO:
+			*size = peer->audio_size;
+			*msg = peer->audio;
+			break;
+		case TG_MEDIA_PHOTO:
+			*size = peer->photo_size;
+			*msg = peer->photo;
+			break;
+		case TG_MEDIA_VIDEO:
+			*size = peer->video_size;
+			*msg = peer->video;
+			break;
+		case TG_MEDIA_DOCUMENT:
+			*size = peer->documents_size;
+			*msg = peer->documents;
+			break;
+		case TG_MEDIA_VOICE:
+			*size = peer->voice_size;
+			*msg = peer->voice;
+			break;
+		case TG_MEDIA_GIF:
+			*size = peer->gif_size;
+			*msg = peer->gif;
+			break;
+		default:
+			return 1;
+	}
+	return 0;
+}
+
+int tg_set_msg_array_by_media_type(tg_msg_t* msg, size_t size, tg_peer_t* peer, int media_type) {
+	switch(media_type) {
+		case TG_MEDIA_AUDIO:
+			peer->audio_size = size;
+			peer->audio = msg;
+			break;
+		case TG_MEDIA_PHOTO:
+			peer->photo_size = size;
+			peer->photo = msg;
+			break;
+		case TG_MEDIA_VIDEO:
+			peer->video_size = size;
+			peer->video = msg;
+			break;
+		case TG_MEDIA_DOCUMENT:
+			peer->documents_size = size;
+			peer->documents = msg;
+			break;
+		case TG_MEDIA_VOICE:
+			peer->voice_size = size;
+			peer->voice = msg;
+			break;
+		case TG_MEDIA_GIF:
+			peer->gif_size = size;
+			peer->gif = msg;
+			break;
+		default:
+			return 1;
+	}
+	return 0;
+}
+
+tg_msg_t* tg_find_peer_msg_by_caption(tg_peer_t* peer, char* caption, int media_type) {
+	uint32_t hash = tg_string_hash(caption);
+	size_t n;
+	tg_msg_t* msg;
+	tg_get_msg_array_by_media_type(&msg, &n, peer, media_type);
+	for(size_t i = 0; i < n; i++) {
+		if(msg[i].caption_hash == hash) {
+			if(strcmp(msg[i].caption, caption) == 0) {
+				return msg + i;
+			}
+		}
+	}
+	return NULL;
+}
+
 int tg_search_msg(tg_peer_t* peer, int type, char* request) {
+	size_t size;
+	tg_msg_t* msg;
+	tg_get_msg_array_by_media_type(&msg, &size, peer, type);
+	if(size > 0) {
+		free(msg);
+		tg_set_msg_array_by_media_type(NULL, 0, peer, type);
+	}
+	
 	char* json;
 	size_t len;
 	int result;
-	if(peer->messages) {
-		free(peer->messages);
-	}
 	char* str = (char*)malloc(256 * sizeof(char));
 	
 	sprintf(str, "search %s %i %s\n", peer->print_name, type, request);
@@ -133,12 +218,13 @@ int tg_search_msg(tg_peer_t* peer, int type, char* request) {
 	socket_read_data(&json, &len);
 	//printf("Answer: %s\n", json);
 	
-	result = json_parse_messages(json, len, peer);
+	result = json_parse_messages(json, len, peer, type);
 	free(str);
 	free(json);
 	return result;
 }
 
-void tg_reload_peer_date() {
+int tg_download_file(char* file_id, tg_peer_t* peer, const char* filename) {
 	
+	return 0;
 }

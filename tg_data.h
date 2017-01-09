@@ -7,12 +7,18 @@
 
 typedef enum {
 	TG_MEDIA_PHOTO = 1,
-	TG_MEDIA_AUDIO_DOCUMENT = 7
+	TG_MEDIA_VIDEO = 2,
+	TG_MEDIA_DOCUMENT = 5,
+	TG_MEDIA_VOICE = 6,
+	TG_MEDIA_AUDIO = 7,
+	TG_MEDIA_GIF = 9
 } tg_media_type;
 
 typedef struct {
 	char id[50];
 	char* caption;
+	uint32_t caption_hash;
+	
 	time_t timestamp;
 	size_t size;
 } tg_msg_t;
@@ -35,8 +41,18 @@ typedef struct {
 	time_t last_seen;
 	size_t total_message_count;
 	
-	tg_msg_t* messages;
-	size_t message_count;
+	tg_msg_t* photo, 
+			  *video, 
+			  *documents, 
+			  *audio, 
+			  *voice,
+			  *gif;
+	size_t photo_size, 
+		   video_size, 
+		   documents_size, 
+		   audio_size, 
+		   voice_size,
+		   gif_size;
 } tg_peer_t;
 
 typedef struct {
@@ -55,6 +71,10 @@ int tg_init();
 tg_peer_t* tg_find_peer_by_name(const char* name, size_t len);
 int tg_search_msg(tg_peer_t* peer, int type, char* request);
 void tg_peer_search_msg_count(tg_peer_t* peer);
+tg_msg_t* tg_find_peer_msg_by_caption(tg_peer_t* peer, char* caption, int media_type);
+int tg_get_msg_array_by_media_type(tg_msg_t** msg, size_t* size, tg_peer_t* peer, int media_type);
+int tg_set_msg_array_by_media_type(tg_msg_t* msg, size_t size, tg_peer_t* peer, int media_type);
+int tg_download_file(char* file_id, tg_peer_t* peer, const char* filename);
 
 uint32_t tg_string_hash(const char* str);
 

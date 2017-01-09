@@ -108,10 +108,10 @@ static void json_parse_media(char* json, jsmntok_t* tokens, size_t pos, tg_msg_t
 		printf("%s\n", m);
 		
 		if(strncmp(json + tokens[r].start, "caption", token_size) == 0) {
-			printf("Caption found!\n");
 			msg->caption = (char*)malloc((inner_size + 1) * sizeof(char));
 			strncpy(msg->caption, json + tokens[r + 1].start, inner_size);
 			msg->caption[inner_size] = 0;
+			msg->caption_hash = tg_string_hash(msg->caption);
 			i++;
 			r += 2;
 			continue; 
@@ -156,14 +156,6 @@ static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t*
 		if(strncmp("id", json + tokens[r].start, token_size) == 0) {
 			strncpy(msg->id, json + tokens[r+1].start, inner_size);
 			msg->id[inner_size] = 0;
-			i++;
-			r += 2;
-			continue;
-		}
-		if(strncmp("caption", json + tokens[r].start, token_size) == 0) {
-			msg->caption = (char*)malloc((inner_size + 1) * sizeof(char));
-			msg->caption[inner_size] = 0;
-			strncpy(msg->caption, json + tokens[r+1].start, inner_size);
 			i++;
 			r += 2;
 			continue;
@@ -214,7 +206,7 @@ int json_parse_dialog_list(char* json, size_t size, tg_peer_t** peers, size_t* p
 	return 0;
 }
 
-int json_parse_messages(char* json, size_t size, tg_peer_t* peer) {
+int json_parse_messages(char* json, size_t size, tg_peer_t* peer, int media_type) {
 	jsmn_parser parser;
 	jsmntok_t *tokens;
 	jsmn_init(&parser);
@@ -227,11 +219,33 @@ int json_parse_messages(char* json, size_t size, tg_peer_t* peer) {
 #ifdef DEBUG
 	printf("json_parse_messages(): Messages count: %i\n", tokens[0].size);
 #endif
-	peer->message_count = 0;
-	peer->messages	= (tg_msg_t*)malloc(tokens_count * sizeof(tg_msg_t));
-	for(size_t i = 1; i < tokens_count; i++) {
-		json_parse_msg(json, tokens, &i, &peer->messages[peer->message_count]);
-		peer->message_count++;
+	size_t message_count;
+	tg_msg_t* messages;
+	tg_get_msg_array_by_media_type(&messages, &message_count, peer, media_type);
+	
+	if(message_count > 0) {
+		messages = (tg_msg_t*)realloc(messages, (message_count + tokens_count) * sizeof(tg_msg_t));
+	} else {
+		messages = (tg_msg_t*)malloc(tokens_count * sizeof(tg_msg_t));
 	}
+	
+	
+	for(size_t i = 1; i < tokens_count; i++) {
+		json_parse_msg(json, tokens, &i, &messages[message_count]);
+		message_count++;
+	}
+	
+	tg_set_msg_array_by_media_type(messages, message_count, peer, media_type);
 	return 0;
+}
+
+char* json_parse_filelink(char* json) {
+	/*char* name;
+	jsmn_parser parser;
+	jsmntok_t* tokens = (jsmntok_t*)malloc(10 * sizeof(jsmntok_t));
+	jsmn_init(&parser);
+	
+	name = (char*)malloc();*/
+	
+	return NULL;
 }
