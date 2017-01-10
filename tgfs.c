@@ -27,13 +27,13 @@ char tgfs_buff[1000];
 
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
-	printf("getattr(): %s\n", path);
+	//printf("getattr(): %s\n", path);
 	memset(stbuf, 0, sizeof(struct stat));
 	
 	stbuf->st_uid = getuid();
 	stbuf->st_gid = getgid();
 	
-	printf("buff: %s\n", tgfs_buff);
+	//printf("buff: %s\n", tgfs_buff);
 	
 	if(strcmp(path, tgfs_buff) == 0) {
 		printf("Ok\n");
@@ -113,7 +113,6 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 	}
 	
 	if(n == 3) {
-		printf("getattr 3\n");
 		size_t message_count;
 		tg_msg_t* messages;
 		int media_type = tg_get_media_type_by_string(path + c[1]);
@@ -173,18 +172,20 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	tg_peer_t* peer = tg_find_peer_by_name(path + 1, c[1] - c[0] - 1);
 	if(n == 2) {
 		int media_type = tg_get_media_type_by_string(path + c[1]);
-		filler(buf, ".", NULL, 0);
-		filler(buf, "..", NULL, 0);
-		tg_search_msg(peer, media_type, "");
-		tg_msg_t* msg;
-		size_t size;
-		tg_get_msg_array_by_media_type(&msg, &size, peer, media_type);
-			
-		while(msg) {
-			filler(buf, msg->caption, NULL, 0);
-			msg = msg->next;
+		if(media_type > 0) {
+			filler(buf, ".", NULL, 0);
+			filler(buf, "..", NULL, 0);
+			tg_search_msg(peer, media_type, "");
+			tg_msg_t* msg;
+			size_t size;
+			tg_get_msg_array_by_media_type(&msg, &size, peer, media_type);
+				
+			while(msg) {
+				filler(buf, msg->caption, NULL, 0);
+				msg = msg->next;
+			}
+			return 0;
 		}
-		return 0;
 	}
 	return -ENOENT;
 }
@@ -214,44 +215,14 @@ static int tgfs_open(const char *path, struct fuse_file_info *fi)
 	if(n == 3) {
 		
 		char name[255];
-		tg_download_file(name, peer, path + c[2]);
+		if(tg_download_file(name, peer, path + c[2], tg_get_media_type_by_string(path + c[1]))) {
+			return -ENOENT;
+		}
 		printf("Filename: %s\n", name);
-		
-		/*strcpy(name, path + c[2]);
-		printf("Peer: %s\n", peer->print_name);
-		
-		for(size_t i = 0; i < peer->message_count; i++) {
-			if(strcmp(peer->messages[i].caption, name) == 0) {
-				sprintf(name, "load_document %s\n", peer->messages[i].id);
-				printf("string: %s", name);
-				socket_send_string(name, strlen(name));
-				char* json;
-				size_t len;
-				socket_read_data(&json, &len);
-				printf("Answer: %s\n", json);
-				
-				
-				jsmn_parse(&parser, json, len, tokens, 10);
-				printf("tokens: %i\n", tokens[0].size); 
-				size_t size = tokens[2].end - tokens[2].start;
-				strncpy(name, json + tokens[2].start, size);
-				name[size] = 0;
-				printf("file: %s\n", name);
-				tgfs_fd = open(name, O_RDONLY);
-				return tgfs_fd > 0 ? 0 : -ENOENT;
-			}
-		}*/
+		tgfs_fd = open(name, O_RDONLY);
+		return tgfs_fd > 0 ? 0 : -ENOENT;
 	}
-	
 	return -ENOENT;
-	
-	tgfs_fd = open("/tmp/tgfs_tmp.jpg",  O_WRONLY | O_CREAT);
-	printf(" = %i\n", tgfs_fd);
-	return 0;
-	if ((fi->flags & 3) != O_RDONLY)
-		return -EACCES;
-
-	return 0;
 }
 
 static int tgfs_read(const char *path, char *buf, size_t size, off_t offset,

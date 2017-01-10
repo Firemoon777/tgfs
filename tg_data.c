@@ -272,7 +272,9 @@ int tg_search_msg(tg_peer_t* peer, int type, char* request) {
 		socket_read_data(&json, &len);
 		assert(json);
 		result = json_parse_messages(json, len, peer, type);
+#ifdef DEBUG
 		printf("tg_search_msg(%i) = %i\n", offset, result);
+#endif
 		offset += count;
 		free(json);
 		json = NULL;
@@ -282,7 +284,52 @@ int tg_search_msg(tg_peer_t* peer, int type, char* request) {
 	return result;
 }
 
-int tg_download_file(char* file_id, tg_peer_t* peer, const char* filename) {
-	
-	return 0;
+int tg_download_file(char* download, tg_peer_t* peer, const char* filename, int media_type) {
+	tg_msg_t* msg;
+	size_t hash;
+	tg_get_msg_array_by_media_type(&msg, &hash, peer, media_type);
+	hash = tg_string_hash(filename);
+	char* file_id = NULL;
+	while(msg) {
+		if(hash == msg->caption_hash) {
+			if(strcmp(filename, msg->caption) == 0) {
+				file_id = msg->id;
+				break;
+			}
+		}
+		msg = msg->next;
+	}
+	if(file_id == NULL) {
+		return 1;
+	}
+	printf("Fileid: %s\n", file_id);
+	char request[255];
+	sprintf(request, "load_file %s\n", file_id);
+	/*switch(media_type) {
+		case TG_MEDIA_AUDIO:
+
+			break;
+		case TG_MEDIA_PHOTO:
+			sprintf(request, "load_photo %s\n", file_id);
+			break;
+		case TG_MEDIA_VIDEO:
+			sprintf(request, "load_video %s\n", file_id);
+			break;
+		case TG_MEDIA_DOCUMENT:
+			sprintf(request, "load_document %s\n", file_id);
+			break;
+		case TG_MEDIA_VOICE:
+			sprintf(request, "load_document %s\n", file_id);
+			break;
+		case TG_MEDIA_GIF:
+			sprintf(request, "load_document %s\n", file_id);
+			break;
+		default:
+			return 1;
+	}*/
+	socket_send_string(request, strlen(request));
+	char* json;
+	size_t len;
+	socket_read_data(&json, &len);
+	return json_parse_filelink(download, json);
 }

@@ -80,7 +80,7 @@ void tg_peer_search_msg_count(tg_peer_t* peer);
 tg_msg_t* tg_find_peer_msg_by_caption(tg_peer_t* peer, char* caption, int media_type);
 int tg_get_msg_array_by_media_type(tg_msg_t** msg, size_t* size, tg_peer_t* peer, int media_type);
 int tg_set_msg_array_by_media_type(tg_msg_t* msg, size_t size, tg_peer_t* peer, int media_type);
-int tg_download_file(char* file_id, tg_peer_t* peer, const char* filename);
+int tg_download_file(char* download, tg_peer_t* peer, const char* filename, int media_type);
 int tg_get_media_type_by_string(const char* msg);
 
 uint32_t tg_string_hash(const char* str);
