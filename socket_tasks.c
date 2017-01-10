@@ -5,10 +5,13 @@
 #include <string.h>
 #include <malloc.h>
 #include <unistd.h>
+#include <assert.h>
+#include <math.h>
 
 #include "socket_tasks.h"
 
 #define SOCKET_NAME "tg_socket"
+#define BUFFER_SIZE 1000
 
 int socket_fd = -1;
 
@@ -68,8 +71,14 @@ size_t socket_read_only_size() {
 
 int socket_read_data(char** data, size_t* len) {
 	*len = socket_read_answer_size(socket_fd);
-	*data = (char*)malloc(*len*sizeof(char));
-	recv(socket_fd, *data, (*len)+1, 0);
+	size_t size = (*len) + 1;
+	*data = (char*)malloc(size*sizeof(char));
+	assert(*data);
+	size_t result;
+	for(size_t i = 0; i < size; i += result) {
+		result = recv(socket_fd, *data + i, BUFFER_SIZE, 0);
+	}
+	(*data)[*len] = 0;
 	return 0;
 }
 

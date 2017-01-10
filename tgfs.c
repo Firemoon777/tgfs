@@ -116,30 +116,18 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 		printf("getattr 3\n");
 		size_t message_count;
 		tg_msg_t* messages;
-		int media_type; 
-		if(strncmp(path + c[1], "Photo", 5) == 0) {
-			media_type = TG_MEDIA_PHOTO;
-		} else if(strncmp(path + c[1], "Audio", 5) == 0) {
-			media_type = TG_MEDIA_AUDIO;
-		} else if(strncmp(path + c[1], "Voice", 5) == 0) {
-			media_type = TG_MEDIA_VOICE;
-		} else if(strncmp(path + c[1], "Document", 8) == 0) {
-			media_type = TG_MEDIA_DOCUMENT;
-		} else if(strncmp(path + c[1], "Video", 5) == 0) {
-			media_type = TG_MEDIA_VIDEO;
-		} else if(strncmp(path + c[1], "Gif", 3) == 0) {
-			media_type = TG_MEDIA_GIF;
-		} 
+		int media_type = tg_get_media_type_by_string(path + c[1]);
 		uint32_t hash = tg_string_hash(path + c[2]);
 		tg_get_msg_array_by_media_type(&messages, &message_count, peer, media_type);
-		for(size_t i = 0; i < message_count; i++) {
-			if(messages[i].caption_hash == hash) {
+		while(messages) {
+			if(messages->caption_hash == hash) {
 				stbuf->st_mode = S_IFREG | 0400;
 				stbuf->st_nlink = 1;
-				stbuf->st_mtime = messages[i].timestamp;
-				stbuf->st_size = messages[i].size;
+				stbuf->st_mtime = messages->timestamp;
+				stbuf->st_size = messages->size;
 				return 0;
 			}
+			messages = messages->next;
 		}
 	}
 	return -ENOENT;
@@ -184,73 +172,20 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	}	
 	tg_peer_t* peer = tg_find_peer_by_name(path + 1, c[1] - c[0] - 1);
 	if(n == 2) {
-		if(strcmp(path + c[1], "Audio") == 0) {
-			filler(buf, ".", NULL, 0);
-			filler(buf, "..", NULL, 0);
-			tg_search_msg(peer, TG_MEDIA_AUDIO, "");
-			for(size_t i = 0; i < peer->audio_size; i++) {	
-				filler(buf, peer->audio[i].caption, NULL, 0);
-			}
-			return 0;
+		int media_type = tg_get_media_type_by_string(path + c[1]);
+		filler(buf, ".", NULL, 0);
+		filler(buf, "..", NULL, 0);
+		tg_search_msg(peer, media_type, "");
+		tg_msg_t* msg;
+		size_t size;
+		tg_get_msg_array_by_media_type(&msg, &size, peer, media_type);
+			
+		while(msg) {
+			filler(buf, msg->caption, NULL, 0);
+			msg = msg->next;
 		}
-		if(strcmp(path + c[1], "Video") == 0) {
-			filler(buf, ".", NULL, 0);
-			filler(buf, "..", NULL, 0);
-			tg_search_msg(peer, TG_MEDIA_VIDEO, "");
-			for(size_t i = 0; i < peer->video_size; i++) {	
-				char name[255];
-				sprintf(name, "video-%6.6lu.mp4", i);
-				peer->video[i].caption = (char*)malloc(strlen(name) * sizeof(char));
-				strcpy(peer->video[i].caption, name);
-				peer->video[i].caption_hash = tg_string_hash(peer->video[i].caption);
-				printf("OK %6.lu\n", i);
-				filler(buf, peer->video[i].caption, NULL, 0);
-			}
-			return 0;
-		}
-		if(strcmp(path + c[1], "Documents") == 0) {
-			filler(buf, ".", NULL, 0);
-			filler(buf, "..", NULL, 0);
-			tg_search_msg(peer, TG_MEDIA_DOCUMENT, "");
-			for(size_t i = 0; i < peer->documents_size; i++) {	
-				filler(buf, peer->documents[i].caption, NULL, 0);
-			}
-			return 0;
-		}
-		if(strcmp(path + c[1], "Voice") == 0) {
-			filler(buf, ".", NULL, 0);
-			filler(buf, "..", NULL, 0);
-			tg_search_msg(peer, TG_MEDIA_VOICE, "");
-			for(size_t i = 0; i < peer->voice_size; i++) {
-				char name[255];
-				sprintf(name, "voice-%6.6lu.ogg", i);
-				peer->voice[i].caption = (char*)malloc(strlen(name) * sizeof(char));
-				strcpy(peer->voice[i].caption, name);
-				peer->voice[i].caption_hash = tg_string_hash(peer->voice[i].caption);
-				printf("OK %6.lu\n", i);
-				filler(buf, peer->voice[i].caption, NULL, 0);
-			}
-			return 0;
-		}
-		if(strcmp(path + c[1], "Photo") == 0) {
-			filler(buf, ".", NULL, 0);
-			filler(buf, "..", NULL, 0);
-			tg_search_msg(peer, TG_MEDIA_PHOTO, "");
-			for(size_t i = 0; i < peer->photo_size; i++) {
-				char name[255];
-				if(!peer->photo[i].caption) {
-					sprintf(name, "photo-%6.6lu.jpg", i);
-					peer->photo[i].caption = (char*)malloc(strlen(name) * sizeof(char));
-					strcpy(peer->photo[i].caption, name);
-					peer->photo[i].caption_hash = tg_string_hash(peer->photo[i].caption);
-					printf("OK %6.lu\n", i);
-				}
-				filler(buf, peer->photo[i].caption, NULL, 0);
-			}
-			return 0;
-		}
+		return 0;
 	}
-	
 	return -ENOENT;
 }
 

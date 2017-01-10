@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -Wall -Werror -pedantic -c -std=c99 `pkg-config fuse --cflags` -D DEBUG
+CFLAGS= -Wall -Werror -pedantic -c -lm -std=c99 `pkg-config fuse --cflags` -D DEBUG
 SRC=$(wildcard *.c)
 OBJ=$(SRC:%.c=%.o)
 PROJECT_NAME=tgfs

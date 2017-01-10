@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "json2tg.h"
 #include "jsmn/jsmn.h"
@@ -119,10 +120,11 @@ static void json_parse_media(char* json, jsmntok_t* tokens, size_t pos, tg_msg_t
 	}
 }
 
-static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t* msg) {
+static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t* msg, int media_type) {
 	size_t r = *pos + 1, i = 0;
 	
 	msg->caption = NULL;
+			
 	while(i < tokens[*pos].size) {	
 		size_t token_size = tokens[r].end - tokens[r].start;
 		size_t inner_size = tokens[r+1].end - tokens[r+1].start;
@@ -134,9 +136,9 @@ static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t*
 			continue;
 		}
 		
-		if(strncmp("fwd_from", json + tokens[r].start, token_size) == 0 ||
-		   strncmp("from", json + tokens[r].start, token_size) == 0 ||
-		   strncmp("to", json + tokens[r].start, token_size) == 0) {\
+		if(strncmp("fwd_from\"", json + tokens[r].start, token_size + 1) == 0 ||
+		   strncmp("from\"", json + tokens[r].start, token_size + 1) == 0 ||
+		   strncmp("to\"", json + tokens[r].start, token_size + 1) == 0) {
 			r += 2*tokens[r+1].size + 2;
 			i++;
 			continue;
@@ -163,7 +165,28 @@ static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t*
 		r += 2;
 	}
 	*pos = r - 1;
-	tg_print_msg_t(msg);
+	if(!msg->caption) {
+		assert(media_type > 0);
+		char ext[4];
+		switch(media_type) {
+			case TG_MEDIA_VOICE:
+				strcpy(ext, "ogg");
+				break;
+			case TG_MEDIA_PHOTO:
+				strcpy(ext, "jpg");
+				break;
+			default:
+				strcpy(ext, "xxx");
+				break;
+		}
+		
+		msg->caption = (char*)malloc(100*sizeof(char));
+		char time[20];
+		strftime(time, sizeof(time), "%b %d %H:%M %Y", localtime(&msg->timestamp));
+		sprintf(msg->caption, "%s - %s.%s", time, "hash", ext);
+		msg->caption_hash = tg_string_hash(msg->caption);
+	}
+	//tg_print_msg_t(msg);
 }
 
 int json_parse_dialog_list(char* json, size_t size, tg_peer_t** peers, size_t* peers_count) {
@@ -207,23 +230,18 @@ int json_parse_messages(char* json, size_t size, tg_peer_t* peer, int media_type
 #ifdef DEBUG
 	printf("json_parse_messages(): Messages count: %i\n", tokens[0].size);
 #endif
-	size_t message_count;
+	size_t message_count = 0;
 	tg_msg_t* messages;
 	tg_get_msg_array_by_media_type(&messages, &message_count, peer, media_type);
-	
-	printf("*alloc start\n");
-	if(message_count > 0) {
-		messages = (tg_msg_t*)realloc(messages, (message_count + tokens_count) * sizeof(tg_msg_t));
-	} else {
-		messages = (tg_msg_t*)malloc(tokens_count * sizeof(tg_msg_t));
-	}
-	printf("*alloc ok\n");
-	
+
 	for(size_t i = 1; i < tokens_count; i++) {
-		json_parse_msg(json, tokens, &i, &messages[message_count]);
+		tg_msg_t* msg = tg_msg_init();
+		json_parse_msg(json, tokens, &i, msg, media_type);
+		tg_msg_add_front(&messages, msg);
 		message_count++;
+		printf("Current: %li\n", message_count);
 	}
-	
+	free(tokens);
 	tg_set_msg_array_by_media_type(messages, message_count, peer, media_type);
 	return tokens_count;
 }

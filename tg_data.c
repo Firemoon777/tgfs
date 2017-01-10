@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include "tg_data.h"
 #include "json2tg.h"
@@ -120,6 +121,23 @@ tg_peer_t* tg_find_peer_by_name(const char* name, size_t len) {
 	return NULL;
 }
 
+int tg_get_media_type_by_string(const char* msg) {
+	if(strncmp(msg, "Photo", 5) == 0) {
+		return TG_MEDIA_PHOTO;
+	} else if(strncmp(msg, "Audio", 5) == 0) {
+		return TG_MEDIA_AUDIO;
+	} else if(strncmp(msg, "Voice", 5) == 0) {
+		return TG_MEDIA_VOICE;
+	} else if(strncmp(msg, "Document", 8) == 0) {
+		return TG_MEDIA_DOCUMENT;
+	} else if(strncmp(msg, "Video", 5) == 0) {
+		return TG_MEDIA_VIDEO;
+	} else if(strncmp(msg, "Gif", 3) == 0) {
+		return TG_MEDIA_GIF;
+	} 
+	return -1;
+}
+
 int tg_get_msg_array_by_media_type(tg_msg_t** msg, size_t* size, tg_peer_t* peer, int media_type) {
 	switch(media_type) {
 		case TG_MEDIA_AUDIO:
@@ -199,12 +217,42 @@ tg_msg_t* tg_find_peer_msg_by_caption(tg_peer_t* peer, char* caption, int media_
 	return NULL;
 }
 
+void tg_msg_free(tg_msg_t* msg) {
+	tg_msg_t* temp;
+	while(msg) {
+		temp = msg->next;
+		free(msg->caption);
+		free(msg);
+		msg = temp;
+	}
+}
+
+tg_msg_t* tg_msg_init() {
+	tg_msg_t* result = (tg_msg_t*)malloc(sizeof(tg_msg_t));
+	if(result) {
+		result->caption = NULL;
+		result->timestamp = 0;
+		result->size = 0;
+		result->next = NULL;
+	}
+	return result;
+}
+
+void tg_msg_add_front(tg_msg_t** head, tg_msg_t* item) {
+	if(*head) {
+		item->next = *head; 
+	}
+	*head = item;
+}
+
+
+
 int tg_search_msg(tg_peer_t* peer, int type, char* request) {
 	size_t size;
 	tg_msg_t* msg;
 	tg_get_msg_array_by_media_type(&msg, &size, peer, type);
 	if(size > 0) {
-		free(msg);
+		tg_msg_free(msg);
 		tg_set_msg_array_by_media_type(NULL, 0, peer, type);
 	}
 	
@@ -222,13 +270,15 @@ int tg_search_msg(tg_peer_t* peer, int type, char* request) {
 		sprintf(str, "search %s %i %i 0 0 %i %s\n", peer->print_name, type, count, offset, request);
 		socket_send_string(str, strlen(str));
 		socket_read_data(&json, &len);
-		
+		assert(json);
 		result = json_parse_messages(json, len, peer, type);
 		printf("tg_search_msg(%i) = %i\n", offset, result);
 		offset += count;
+		free(json);
+		json = NULL;
+		//sleep(1);
 	}
 	free(str);
-	free(json);
 	return result;
 }
 

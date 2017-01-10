@@ -14,13 +14,15 @@ typedef enum {
 	TG_MEDIA_GIF = 9
 } tg_media_type;
 
-typedef struct {
+typedef struct tg_msg_t {
 	char id[50];
 	char* caption;
 	uint32_t caption_hash;
 	
 	time_t timestamp;
 	size_t size;
+	
+	struct tg_msg_t* next;
 } tg_msg_t;
 
 typedef enum {
@@ -67,6 +69,10 @@ void tg_print_msg_t(tg_msg_t* msg);
 
 #endif
 
+void tg_msg_free(tg_msg_t* msg);
+tg_msg_t* tg_msg_init();
+void tg_msg_add_front(tg_msg_t** head, tg_msg_t* item);
+
 int tg_init();
 tg_peer_t* tg_find_peer_by_name(const char* name, size_t len);
 int tg_search_msg(tg_peer_t* peer, int type, char* request);
@@ -75,6 +81,7 @@ tg_msg_t* tg_find_peer_msg_by_caption(tg_peer_t* peer, char* caption, int media_
 int tg_get_msg_array_by_media_type(tg_msg_t** msg, size_t* size, tg_peer_t* peer, int media_type);
 int tg_set_msg_array_by_media_type(tg_msg_t* msg, size_t size, tg_peer_t* peer, int media_type);
 int tg_download_file(char* file_id, tg_peer_t* peer, const char* filename);
+int tg_get_media_type_by_string(const char* msg);
 
 uint32_t tg_string_hash(const char* str);
 
