@@ -61,6 +61,16 @@ typedef struct {
 	time_t cached_time[10];
 } tg_peer_t;
 
+typedef struct tg_fd {
+	int fd;
+	char* path;
+	uint32_t path_hash;
+	
+	char* real_path;
+	
+	struct tg_fd* next;
+} tg_fd;
+
 typedef struct {
 	tg_peer_t* peers;
 	size_t peers_count;
@@ -88,5 +98,11 @@ int tg_download_file(char* download, tg_peer_t* peer, const char* filename, int 
 int tg_get_media_type_by_string(const char* msg);
 
 uint32_t tg_string_hash(const char* str);
+
+tg_fd* tg_init_fd();
+void tg_add_fd(tg_fd** head, tg_fd* item);
+void tg_free_fd(tg_fd* item);
+void tg_remove_fd(tg_fd **head, tg_fd* item);
+tg_fd* tg_search_fd(tg_fd* head, const char* path);
 
 #endif

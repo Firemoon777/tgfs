@@ -34,11 +34,15 @@ static int socket_open(const char* name) {
 	return fd;
 }
 
-static void get_home_dir(char* home) {
+void get_home_dir(char* home) {
 	struct passwd *pw = getpwuid(getuid());
 	strcpy(home, pw->pw_dir);
 	strcat(home, "/.tgfs/");
-	
+}
+
+void get_downloads_dir(char* dir) {
+	get_home_dir(dir);
+	strcat(dir, "donwloads/");
 }
 
 void socket_init() {
@@ -58,6 +62,7 @@ void socket_close() {
 	strcat(home, SOCKET_NAME);
 	system("pkill -9 telegram-tgfs");
 	remove(home);
+	system("rm ~/.tgfs/downloads/*");
 }
 
 ssize_t socket_send_string(char* string, size_t size) {

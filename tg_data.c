@@ -350,3 +350,63 @@ int tg_download_file(char* download, tg_peer_t* peer, const char* filename, int 
 	pthread_mutex_unlock(&lock);
 	return json_parse_filelink(download, json);
 }
+
+tg_fd* tg_init_fd() {
+	tg_fd* result = (tg_fd*)malloc(sizeof(tg_fd));
+	result->path = NULL;
+	result->path_hash = 0;
+	result->next = NULL;
+	result->fd = -1;
+	return result;
+}
+
+void tg_add_fd(tg_fd** head, tg_fd* item) {
+	if(head) {
+		item->next = *head;
+		*head = item;
+	} else {
+		*head = item;
+	}
+}
+
+void tg_free_fd(tg_fd* item) {
+	free(item->real_path);
+	free(item->path);
+	free(item);
+}
+
+void tg_remove_fd(tg_fd **head, tg_fd* item) {
+	if(item == NULL) {
+		return;
+	}
+	if(*head == item) {
+		*head = item->next;
+		free(item);
+	} else {
+		tg_fd* t = *head;
+		while(t->next) {
+			if(t->next == item) {
+				t->next = t->next->next;
+				free(t->next);
+				return;
+			}
+			t = t->next;
+		}
+	}
+}
+
+tg_fd* tg_search_fd(tg_fd* head, const char* path) {
+	uint32_t hash = tg_string_hash(path);
+	while(head) {
+		printf("tg_search_fd() = %s\n", head->path);
+		if(head->path_hash == hash) {
+			if(strcmp(path, head->path) == 0) {
+				printf("search finished! (fd = %s)\n", head->real_path);
+				return head;
+			}
+		}
+		printf("next!\n");
+		head = head->next;
+	}
+	return NULL;
+}

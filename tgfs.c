@@ -10,7 +10,7 @@
 #include <malloc.h>
 #include <stdlib.h>
 #include <unistd.h>
-
+#include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -24,8 +24,9 @@
 #define TGLUF_HAS_PHOTO (1 << 1)
 
 extern tg_data_t tg;
+extern pthread_mutex_t lock;
 
-int tgfs_fd = -1;
+tg_fd* tgfs_fd = NULL;
 char tgfs_buff[1000];
 
 static int tgfs_getattr(const char *path, struct stat *stbuf)
@@ -38,7 +39,8 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 	
 	//printf("buff: %s\n", tgfs_buff);
 	
-	if(strcmp(path, tgfs_buff) == 0) {
+	tg_fd* f = tg_search_fd(tgfs_fd, path);
+	if(f) {
 		printf("Ok\n");
 		stbuf->st_mode = S_IFREG | 0200;
 		stbuf->st_nlink = 1;
@@ -208,10 +210,6 @@ static int tgfs_open(const char *path, struct fuse_file_info *fi)
 {
 	printf("open(): %s\n", path);
 	
-	if(strcmp(path, tgfs_buff) == 0) {
-		return 0;
-	}
-	
 	size_t c[10];
 	size_t n = 0;
 	for(size_t i = 0; i < strlen(path); i++) {
@@ -233,8 +231,20 @@ static int tgfs_open(const char *path, struct fuse_file_info *fi)
 			return -ENOENT;
 		}
 		printf("Filename: %s\n", name);
-		tgfs_fd = open(name, O_RDONLY);
-		return tgfs_fd > 0 ? 0 : -ENOENT;
+		tg_fd* d_file = tg_init_fd();
+		size_t len = strlen(path);
+		d_file->path = (char*)malloc((len+1)*sizeof(char));
+		strcpy(d_file->path, path);
+		d_file->path[len] = 0;
+		d_file->path_hash = tg_string_hash(d_file->path);
+		d_file->fd = open(name, O_RDONLY);
+		if(d_file->fd > 0) {
+			tg_add_fd(&tgfs_fd, d_file);
+			return 0;
+		}
+		int t = d_file->fd;
+		free(d_file);
+		return t;
 	}
 	return -ENOENT;
 }
@@ -244,7 +254,8 @@ static int tgfs_read(const char *path, char *buf, size_t size, off_t offset,
 {
 	printf("read(): %s\n", path);
 	(void) fi;
-	return pread(tgfs_fd, buf, size, offset);
+	tg_fd* u_file = tg_search_fd(tgfs_fd, path);
+	return pread(u_file->fd, buf, size, offset);
 }
 
 static int tgfs_create(const char *path, mode_t mode,
@@ -252,26 +263,52 @@ static int tgfs_create(const char *path, mode_t mode,
 						
 	(void) fi;
 	printf("create(): %s\n", path);
-	strcpy(tgfs_buff, path);
-	remove("/tmp/tgfs_tmp.jpg");
-	tgfs_fd = open("/tmp/tgfs_tmp.jpg",  O_WRONLY | O_CREAT);
-	printf(" = %i\n", tgfs_fd);
-	return 0;
+
+	size_t len = strlen(path);
+	tg_fd* u_file = tg_init_fd();
+	u_file->path = (char*)malloc((len+1)*sizeof(char));
+	strcpy(u_file->path, path);
+	u_file->path[len] = 0;
+	u_file->path_hash = tg_string_hash(u_file->path);
+	char real_path[4096];
+	char real_name[255];
+	char ext[4];
+	strncpy(ext, path + len - 3, 3);
+	ext[3] = 0;
+	//get_downloads_dir(real_path);
+	strcpy(real_path, "/tmp/");
+	sprintf(real_name, "upload-%u.%s", u_file->path_hash, ext);
+	strcat(real_path, real_name);
+	u_file->real_path = (char*)malloc(strlen(real_path) * sizeof(char));
+	strcpy(u_file->real_path, real_path);
+	u_file->fd = open(real_path,  O_WRONLY | O_CREAT, 0777);
+	
+	printf("real_path = %s\n", u_file->real_path);
+	printf(">> fd = %i <<\n", u_file->fd);
+	
+	if(u_file->fd > 0) {
+		
+		tg_add_fd(&tgfs_fd, u_file);
+		return 0;
+	}
+	int t = u_file->fd;
+	free(u_file);
+	return t;
 }
 
 static int tgfs_write(const char *path, const char *buf, size_t size, off_t offset, 
 			struct fuse_file_info *fi) {
 	(void) fi;
-	int res = write(tgfs_fd, buf, size);
-	printf("write: %s #%i(%li -> %li) = %i\n", path, tgfs_fd, size, offset, res);
+	tg_fd* u_file = tg_search_fd(tgfs_fd, path);
+	printf("search OK (fd = %i)\n", u_file->fd);
+	int res = pwrite(u_file->fd, buf, size, offset);
+	printf("write: %s #%i(%li -> %li) = %i\n", path, u_file->fd, size, offset, res);
 	
 	return res;
 }
 
 int tgfs_release(const char *path, struct fuse_file_info *fi) {
 	printf("release:  %s\n", path);
-	close(tgfs_fd);
-	tgfs_fd = -1;
 	
 	//size_t c[10];
 	size_t n = 0;
@@ -285,16 +322,30 @@ int tgfs_release(const char *path, struct fuse_file_info *fi) {
 	
 	if(n == 2) {
 		
+		tg_fd* f = tg_search_fd(tgfs_fd, path);
+		if(f == NULL) {
+			return -ENOENT;
+		}
+		
 		char buff[1000];
 		char req[1000];
 		size_t s = 1;
 		while(path[s] != '/')
 			s++;
 		strncpy(buff, path + 1, s - 1);
-		buff[s] = 0;
-		sprintf(req, "post_photo %s %s %s\n", buff, "/tmp/tgfs_tmp.jpg", path + s + 1);
+		buff[s-1] = 0;
+		sprintf(req, "post_photo %s %s %s\n", buff, f->real_path, path + s + 1);
 		printf("req: %s\n", req);
-		//socket_send_string(req, strlen(req));
+		
+		pthread_mutex_lock(&lock);
+		socket_send_string(req, strlen(req));
+		char* json;
+		size_t len;
+		socket_read_data(&json, &len);
+		pthread_mutex_unlock(&lock);
+		printf("json release: %s\n", json);
+		close(f->fd);
+		tg_remove_fd(&tgfs_fd, f);
 	}
 	return 0;
 }
