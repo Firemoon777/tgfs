@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
+#include <pthread.h>
 
 #include "tg_data.h"
 #include "json2tg.h"
@@ -12,6 +13,7 @@
 #include "jsmn/jsmn.h"
 
 tg_data_t tg;
+pthread_mutex_t lock;
 
 /* djb2 */
 uint32_t tg_string_hash(const char* str) {
@@ -25,11 +27,19 @@ uint32_t tg_string_hash(const char* str) {
 }
 
 int tg_init() {
+	if (pthread_mutex_init(&lock, NULL) != 0) {
+        printf("\n mutex init failed\n");
+        exit(1);
+    }
 	char* json;
 	size_t len;
 	char* request = "dialog_list\n";
+	
+	pthread_mutex_lock(&lock);
 	socket_send_string(request, strlen(request));
 	socket_read_data(&json, &len);
+	pthread_mutex_unlock(&lock);
+	
 	if(json_parse_dialog_list(json, len, &tg.peers, &tg.peers_count)) 
 		return 1;
 	free(json);
@@ -268,8 +278,12 @@ int tg_search_msg(tg_peer_t* peer, int type, char* request) {
 	result = 2;
 	while(result > 1) {
 		sprintf(str, "search %s %i %i 0 0 %i %s\n", peer->print_name, type, count, offset, request);
+		
+		pthread_mutex_lock(&lock);
 		socket_send_string(str, strlen(str));
 		socket_read_data(&json, &len);
+		pthread_mutex_unlock(&lock);
+		
 		assert(json);
 		result = json_parse_messages(json, len, peer, type);
 #ifdef DEBUG
@@ -327,9 +341,11 @@ int tg_download_file(char* download, tg_peer_t* peer, const char* filename, int 
 		default:
 			return 1;
 	}*/
+	pthread_mutex_lock(&lock);
 	socket_send_string(request, strlen(request));
 	char* json;
 	size_t len;
 	socket_read_data(&json, &len);
+	pthread_mutex_unlock(&lock);
 	return json_parse_filelink(download, json);
 }
