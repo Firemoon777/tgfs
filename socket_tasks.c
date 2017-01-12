@@ -62,7 +62,7 @@ void socket_close() {
 	strcat(home, SOCKET_NAME);
 	system("pkill -9 telegram-tgfs");
 	remove(home);
-	system("rm ~/.tgfs/downloads/*");
+	system("rm -r ~/.tgfs/downloads/");
 }
 
 ssize_t socket_send_string(char* string, size_t size) {

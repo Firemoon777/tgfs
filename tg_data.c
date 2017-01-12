@@ -398,14 +398,11 @@ void tg_remove_fd(tg_fd **head, tg_fd* item) {
 tg_fd* tg_search_fd(tg_fd* head, const char* path) {
 	uint32_t hash = tg_string_hash(path);
 	while(head) {
-		printf("tg_search_fd() = %s\n", head->path);
 		if(head->path_hash == hash) {
 			if(strcmp(path, head->path) == 0) {
-				printf("search finished! (fd = %s)\n", head->real_path);
 				return head;
 			}
 		}
-		printf("next!\n");
 		head = head->next;
 	}
 	return NULL;

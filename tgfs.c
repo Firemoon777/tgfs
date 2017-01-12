@@ -283,9 +283,6 @@ static int tgfs_create(const char *path, mode_t mode,
 	strcpy(u_file->real_path, real_path);
 	u_file->fd = open(real_path,  O_WRONLY | O_CREAT, 0777);
 	
-	printf("real_path = %s\n", u_file->real_path);
-	printf(">> fd = %i <<\n", u_file->fd);
-	
 	if(u_file->fd > 0) {
 		
 		tg_add_fd(&tgfs_fd, u_file);
@@ -300,7 +297,6 @@ static int tgfs_write(const char *path, const char *buf, size_t size, off_t offs
 			struct fuse_file_info *fi) {
 	(void) fi;
 	tg_fd* u_file = tg_search_fd(tgfs_fd, path);
-	printf("search OK (fd = %i)\n", u_file->fd);
 	int res = pwrite(u_file->fd, buf, size, offset);
 	printf("write: %s #%i(%li -> %li) = %i\n", path, u_file->fd, size, offset, res);
 	
@@ -332,9 +328,10 @@ int tgfs_release(const char *path, struct fuse_file_info *fi) {
 		size_t s = 1;
 		while(path[s] != '/')
 			s++;
+			
 		strncpy(buff, path + 1, s - 1);
 		buff[s-1] = 0;
-		sprintf(req, "post_photo %s %s %s\n", buff, f->real_path, path + s + 1);
+		sprintf(req, "post_document %s %s\n", buff, f->real_path/*, path + s + 1*/);
 		printf("req: %s\n", req);
 		
 		pthread_mutex_lock(&lock);
@@ -343,7 +340,6 @@ int tgfs_release(const char *path, struct fuse_file_info *fi) {
 		size_t len;
 		socket_read_data(&json, &len);
 		pthread_mutex_unlock(&lock);
-		printf("json release: %s\n", json);
 		remove(f->real_path);
 		close(f->fd);
 		tg_remove_fd(&tgfs_fd, f);
@@ -354,7 +350,6 @@ int tgfs_release(const char *path, struct fuse_file_info *fi) {
 
 int tgfs_truncate(const char *path, off_t newsize) {
 	printf("truncate:  %s\n", path);
-	truncate("/tmp/tgfs_tmp.jpg", newsize);
 	return 0;
 }
 
