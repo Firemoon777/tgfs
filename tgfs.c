@@ -344,8 +344,10 @@ int tgfs_release(const char *path, struct fuse_file_info *fi) {
 		socket_read_data(&json, &len);
 		pthread_mutex_unlock(&lock);
 		printf("json release: %s\n", json);
+		remove(f->real_path);
 		close(f->fd);
 		tg_remove_fd(&tgfs_fd, f);
+		
 	}
 	return 0;
 }
