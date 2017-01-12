@@ -3,6 +3,7 @@
 #define _SOCKET_TASKS_H_ 
 
 void socket_init();
+void socket_close();
 
 size_t socket_read_only_size();
 

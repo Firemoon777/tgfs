@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <assert.h>
 #include <math.h>
+#include <sys/types.h>
+#include <pwd.h>
 
 #include "socket_tasks.h"
 
@@ -33,7 +35,20 @@ static int socket_open(const char* name) {
 }
 
 void socket_init() {
-	socket_fd = socket_open(SOCKET_NAME);
+	system("telegram-tgfs -d -vvvv -S ~/.tgfs/"SOCKET_NAME" --json --permanent-msg-ids --permanent-peer-ids -L /var/log/telegram-daemon/telegram-cli.log &");
+	sleep(1);
+	struct passwd *pw = getpwuid(getuid());
+	char socket_name[255];
+	strcpy(socket_name, pw->pw_dir);
+	strcat(socket_name, "/.tgfs/");
+	strcat(socket_name, SOCKET_NAME);
+	printf("socket name: %s\n", socket_name);
+	socket_fd = socket_open(socket_name);
+}
+
+void socket_close() {
+	shutdown(socket_fd, 2);
+	system("killall telegram-tgfs");
 }
 
 ssize_t socket_send_string(char* string, size_t size) {
@@ -47,18 +62,12 @@ static size_t socket_read_answer_size(int fd) {
 	char digit = 0;
 	if(recv(fd, t, len, 0) < 0) 
 		return -1;
-	//printf("Buffer: '%s'\n", t);
 	while(1) {
 		read(fd, &digit, 1);
-		if(digit < '0' || digit > '9') {
-			//printf("ALARM! ");
-		}
-		//printf("%c\n", digit);
 		if(digit == '\n')
 			break;
 		result = result * 10 + (digit - '0');
 	} 
-	//printf("Total: %li\n", result);
 	free(t);
 	return result;
 }
