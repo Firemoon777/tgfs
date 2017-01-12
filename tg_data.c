@@ -44,6 +44,7 @@ int tg_init() {
 void tg_print_msg_t(tg_msg_t* msg) {
 	fprintf(stderr, "Msg:\n");
 	fprintf(stderr, "\tid: '%s'\n", msg->id);
+	fprintf(stderr, "\tflags: %lu\n", msg->flags);
 	fprintf(stderr, "\tcaption: '%s'\n", msg->caption);
 	fprintf(stderr, "\tcaption_hash: '%u'\n", msg->caption_hash);
 	fprintf(stderr, "\tsize: '%li'\n", msg->size);

@@ -81,7 +81,15 @@ static void json_parse_peer(char* json, jsmntok_t* tokens, size_t* pos, tg_peer_
 			r += 2;
 			continue;
 		}
-		
+		if(strncmp(json + tokens[r].start, "flasg", token_size) == 0) {
+			char a[100];
+			strncpy(a, json + tokens[r + 1].start, inner_size);
+			a[inner_size] = 0;
+			peer->flags = strtol(a, NULL, 10);
+			i++;
+			r += 2;
+			continue; 
+		}
 		
 		i++;
 		r += 2;
@@ -90,13 +98,7 @@ static void json_parse_peer(char* json, jsmntok_t* tokens, size_t* pos, tg_peer_
 }
 
 static void json_parse_skip(char* json, jsmntok_t* tokens, size_t *r) {
-	//printf(">>> SKIP\n");
 	size_t size = tokens[(*r)+1].size;
-	
-	/*char a[10000];
-	strncpy(a, json + tokens[(*r)+1].start, tokens[(*r)+1].end - tokens[(*r)+1].start);
-	a[tokens[(*r)+1].end - tokens[(*r)+1].start] = 0;
-	printf("msg: %s (%li)\n", a, size);*/
 	
 	*r += 2;
 	for(size_t i = 0; i < size; i++) {
@@ -105,9 +107,7 @@ static void json_parse_skip(char* json, jsmntok_t* tokens, size_t *r) {
 			continue;
 		}
 		*r += 2;
-		//printf("Skipping %lu\n", *r);
 	}
-	//printf("<<< SKIP\n");
 }
 
 static void json_parse_media(char* json, jsmntok_t* tokens, size_t pos, tg_msg_t* msg) {
@@ -147,22 +147,10 @@ static void json_parse_media(char* json, jsmntok_t* tokens, size_t pos, tg_msg_t
 
 static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t* msg, int media_type) {
 	size_t r = *pos + 1, i = 0;
-	
-	//char a[10000];
-	/*strncpy(a, json + tokens[*pos].start, tokens[*pos].end - tokens[*pos].start);
-	a[tokens[*pos].end - tokens[*pos].start] = 0;
-	printf("msg: %s\n", a);*/
 			
 	while(i < tokens[*pos].size) {	
 		size_t token_size = tokens[r].end - tokens[r].start;
 		size_t inner_size = tokens[r+1].end - tokens[r+1].start;
-
-		/*strncpy(a, json + tokens[r].start, token_size);
-		a[token_size] = 0;
-		printf("%s = ", a);
-		strncpy(a, json + tokens[r+1].start, inner_size);
-		a[inner_size] = 0;
-		printf("%s\n", a);*/
 		
 		if(strncmp("media", json + tokens[r].start, token_size) == 0) {
 			json_parse_media(json, tokens, r + 1, msg);
@@ -218,7 +206,7 @@ static void json_parse_msg(char* json, jsmntok_t* tokens, size_t* pos, tg_msg_t*
 		assert(media_type > 0);		
 		msg->caption = (char*)malloc(100*sizeof(char));
 		char time[20];
-		strftime(time, sizeof(time), "%b %d %H:%M %Y", localtime(&msg->timestamp));
+		strftime(time, sizeof(time), "%Y-%m-%d %H:%M:%S", localtime(&msg->timestamp));
 		sprintf(msg->caption, "%s - %u%s", time, (unsigned)tg_string_hash(msg->id), ext);
 	}
 	msg->caption_hash = tg_string_hash(msg->caption);

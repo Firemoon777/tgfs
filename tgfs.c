@@ -20,6 +20,8 @@
 #include "jsmn/jsmn.h"
 #include "tg_data.h"
 
+#define TGLUF_SELF (1 << 19)
+
 extern tg_data_t tg;
 
 int tgfs_fd = -1;
@@ -70,6 +72,9 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 			stbuf->st_mode = S_IFDIR | 0700;
 		} else {
 			stbuf->st_mode = S_IFDIR | 0500;
+		}
+		if(peer->flags & TGLUF_SELF) {
+			stbuf->st_mode |= 4000;
 		}
 		stbuf->st_atime = peer->last_seen;
 		stbuf->st_ctime = peer->last_seen;
@@ -305,5 +310,7 @@ static struct fuse_operations tgfs_oper = {
 int main(int argc, char *argv[]) {
 	socket_init();
 	tg_init();
-	return fuse_main(argc, argv, &tgfs_oper, NULL);
+	int result = fuse_main(argc, argv, &tgfs_oper, NULL);
+	
+	return result;
 }

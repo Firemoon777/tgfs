@@ -55,6 +55,8 @@ typedef struct {
 		   audio_size, 
 		   voice_size,
 		   gif_size;
+		   
+	uint32_t flags;
 } tg_peer_t;
 
 typedef struct {
