@@ -21,6 +21,7 @@
 #include "tg_data.h"
 
 #define TGLUF_SELF (1 << 19)
+#define TGLUF_HAS_PHOTO (1 << 1)
 
 extern tg_data_t tg;
 
@@ -73,8 +74,8 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 		} else {
 			stbuf->st_mode = S_IFDIR | 0500;
 		}
-		if(peer->flags & TGLUF_SELF) {
-			stbuf->st_mode |= 4000;
+		if(peer->flags & TGLUF_SELF && peer->peer_type == TG_USER) {
+			stbuf->st_mode = S_IFDIR | 01700;
 		}
 		stbuf->st_atime = peer->last_seen;
 		stbuf->st_ctime = peer->last_seen;
@@ -114,7 +115,13 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 			stbuf->st_mode = S_IFDIR | 0500;
 			stbuf->st_nlink = peer->gif_size;
 			return 0;
-		} 
+		} else if(strncmp(path + c[1], "Avatar.jpg", 10) == 0) {
+			if(peer->flags & TGLUF_SELF && peer->peer_type == TG_USER) {
+				stbuf->st_mode = S_IFREG | 0600;
+			} else {
+				stbuf->st_mode = S_IFREG | 0500;
+			}
+		}
 	}
 	
 	if(n == 3) {
@@ -163,7 +170,7 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		}
 	}
 	c[n] = strlen(path) + 1;
-	
+	tg_peer_t* peer = tg_find_peer_by_name(path + 1, c[1] - c[0] - 1);
 	if(n == 1) {
 		filler(buf, ".", NULL, 0);
 		filler(buf, "..", NULL, 0);
@@ -172,9 +179,11 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		filler(buf, "Video", NULL, 0);
 		filler(buf, "Voice", NULL, 0);
 		filler(buf, "Documents", NULL, 0);
+		if(peer->flags & TGLUF_HAS_PHOTO) {
+			filler(buf, "Avatar.jpg", NULL, 0);
+		}
 		return 0;
 	}	
-	tg_peer_t* peer = tg_find_peer_by_name(path + 1, c[1] - c[0] - 1);
 	if(n == 2) {
 		int media_type = tg_get_media_type_by_string(path + c[1]);
 		if(media_type > 0) {
@@ -296,7 +305,13 @@ int tgfs_truncate(const char *path, off_t newsize) {
 	return 0;
 }
 
+static void* tgfs_init(struct fuse_conn_info *conn) {
+	(void) conn;
+	return NULL;
+}
+
 static struct fuse_operations tgfs_oper = {
+	.init 		= tgfs_init,
 	.getattr	= tgfs_getattr,
 	.readdir	= tgfs_readdir,
 	.open		= tgfs_open,
@@ -308,11 +323,16 @@ static struct fuse_operations tgfs_oper = {
 };
 
 int main(int argc, char *argv[]) {
-	// 
-	// ./$(PROJECT_NAME) -f -s -o direct_io test -o use_ino #-o debug
+	
+	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+
+    fuse_opt_parse(&args, NULL, NULL, NULL);
+    fuse_opt_add_arg(&args, "-odirect_io");
+    fuse_opt_add_arg(&args, "-ouse_ino");
+    
 	socket_init();
 	tg_init();
-	int result = fuse_main(argc, argv, &tgfs_oper, NULL);
+	int result = fuse_main(args.argc, args.argv, &tgfs_oper, NULL);
 	socket_close();
 	return result;
 }

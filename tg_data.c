@@ -44,7 +44,6 @@ int tg_init() {
 void tg_print_msg_t(tg_msg_t* msg) {
 	fprintf(stderr, "Msg:\n");
 	fprintf(stderr, "\tid: '%s'\n", msg->id);
-	fprintf(stderr, "\tflags: %lu\n", msg->flags);
 	fprintf(stderr, "\tcaption: '%s'\n", msg->caption);
 	fprintf(stderr, "\tcaption_hash: '%u'\n", msg->caption_hash);
 	fprintf(stderr, "\tsize: '%li'\n", msg->size);
@@ -68,7 +67,7 @@ void tg_print_peer_t(tg_peer_t* peer) {
 			fprintf(stderr, "\tpeer_type: unknown\n");
 			break;
 	}
-	
+	fprintf(stderr, "\tflags: %u\n", peer->flags);
 	fprintf(stderr, "\tpeer_id: %lu\n", peer->peer_id);
 	fprintf(stderr, "\tprint_name: '%s'\n", peer->print_name);
 	fprintf(stderr, "\tlast_seen: %li\n", peer->last_seen);

@@ -81,7 +81,7 @@ static void json_parse_peer(char* json, jsmntok_t* tokens, size_t* pos, tg_peer_
 			r += 2;
 			continue;
 		}
-		if(strncmp(json + tokens[r].start, "flasg", token_size) == 0) {
+		if(strncmp(json + tokens[r].start, "flags", token_size) == 0) {
 			char a[100];
 			strncpy(a, json + tokens[r + 1].start, inner_size);
 			a[inner_size] = 0;

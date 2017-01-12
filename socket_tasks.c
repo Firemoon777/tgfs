@@ -34,13 +34,19 @@ static int socket_open(const char* name) {
 	return fd;
 }
 
+static void get_home_dir(char* home) {
+	struct passwd *pw = getpwuid(getuid());
+	strcpy(home, pw->pw_dir);
+	strcat(home, "/.tgfs/");
+	
+}
+
 void socket_init() {
 	system("telegram-tgfs -d -vvvv -S ~/.tgfs/"SOCKET_NAME" --json --permanent-msg-ids --permanent-peer-ids -L /var/log/telegram-daemon/telegram-cli.log &");
 	sleep(1);
-	struct passwd *pw = getpwuid(getuid());
+	
 	char socket_name[255];
-	strcpy(socket_name, pw->pw_dir);
-	strcat(socket_name, "/.tgfs/");
+	get_home_dir(socket_name);
 	strcat(socket_name, SOCKET_NAME);
 	printf("socket name: %s\n", socket_name);
 	socket_fd = socket_open(socket_name);
@@ -48,7 +54,12 @@ void socket_init() {
 
 void socket_close() {
 	shutdown(socket_fd, 2);
-	system("killall telegram-tgfs");
+	char home[255];
+	get_home_dir(home);
+	strcat(home, SOCKET_NAME);
+	system("kill -9 telegram-tgfs");
+	printf("remove: %s\n", home);
+	remove(home);
 }
 
 ssize_t socket_send_string(char* string, size_t size) {
