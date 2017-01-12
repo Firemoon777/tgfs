@@ -56,7 +56,7 @@ void socket_close() {
 	char home[255];
 	get_home_dir(home);
 	strcat(home, SOCKET_NAME);
-	system("kill -9 telegram-tgfs");
+	system("pkill -9 telegram-tgfs");
 	remove(home);
 }
 

@@ -242,6 +242,7 @@ int json_parse_dialog_list(char* json, size_t size, tg_peer_t** peers, size_t* p
 }
 
 int json_parse_messages(char* json, size_t size, tg_peer_t* peer, int media_type) {
+	int parsed = 0;
 	jsmn_parser parser;
 	jsmntok_t *tokens;
 	jsmn_init(&parser);
@@ -261,12 +262,14 @@ int json_parse_messages(char* json, size_t size, tg_peer_t* peer, int media_type
 	for(size_t i = 1; i < tokens_count; i++) {
 		tg_msg_t* msg = tg_msg_init();
 		json_parse_msg(json, tokens, &i, msg, media_type);
-		tg_msg_add_front(&messages, msg);
-		message_count++;
+		if(msg->timestamp > peer->cached_time[media_type]) {
+			tg_msg_add_front(&messages, msg);
+			parsed++;
+		}
 	}
 	free(tokens);
-	tg_set_msg_array_by_media_type(messages, message_count, peer, media_type);
-	return tokens_count;
+	tg_set_msg_array_by_media_type(messages, message_count + parsed, peer, media_type);
+	return parsed;
 }
 
 int json_parse_filelink(char* link, char* json) {

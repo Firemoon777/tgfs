@@ -261,10 +261,10 @@ int tg_search_msg(tg_peer_t* peer, int type, char* request) {
 	size_t size;
 	tg_msg_t* msg;
 	tg_get_msg_array_by_media_type(&msg, &size, peer, type);
-	if(size > 0) {
+	/*if(size > 0) {
 		tg_msg_free(msg);
 		tg_set_msg_array_by_media_type(NULL, 0, peer, type);
-	}
+	}*/
 	
 	char* json;
 	size_t len;
@@ -294,6 +294,7 @@ int tg_search_msg(tg_peer_t* peer, int type, char* request) {
 		json = NULL;
 		//sleep(1);
 	}
+	peer->cached_time[type] = time(NULL) - 3 * 60;
 	free(str);
 	return result;
 }
