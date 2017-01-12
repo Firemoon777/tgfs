@@ -308,6 +308,8 @@ static struct fuse_operations tgfs_oper = {
 };
 
 int main(int argc, char *argv[]) {
+	// telegram-cli -d -vvvv -S tg_socket --json --permanent-msg-ids --permanent-peer-ids -L /var/log/telegram-daemon/telegram-cli.log & 
+	// ./$(PROJECT_NAME) -f -s -o direct_io test -o use_ino #-o debug
 	socket_init();
 	tg_init();
 	int result = fuse_main(argc, argv, &tgfs_oper, NULL);
