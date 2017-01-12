@@ -48,7 +48,6 @@ void socket_init() {
 	char socket_name[255];
 	get_home_dir(socket_name);
 	strcat(socket_name, SOCKET_NAME);
-	printf("socket name: %s\n", socket_name);
 	socket_fd = socket_open(socket_name);
 }
 
@@ -58,7 +57,6 @@ void socket_close() {
 	get_home_dir(home);
 	strcat(home, SOCKET_NAME);
 	system("kill -9 telegram-tgfs");
-	printf("remove: %s\n", home);
 	remove(home);
 }
 
