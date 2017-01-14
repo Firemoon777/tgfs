@@ -45,4 +45,5 @@ AC_CHECK_FUNCS([memset socket strtol])
 
 AC_CONFIG_FILES([Makefile])
 
+mkdir -p build bin
 AC_OUTPUT

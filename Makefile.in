@@ -1,33 +1,33 @@
 CC=@CC@
 CFLAGS=@CFLAGS@ -Wall -Werror -pedantic -c -std=c99 `pkg-config fuse --cflags` #-D DEBUG
 LIBS=@LIBS@ `pkg-config fuse --libs`
-SRC=$(wildcard *.c)
-OBJ=$(SRC:%.c=%.o)
-PROJECT_NAME=tgfs
+SRC=$(wildcard src/*.c) 
+OBJ=$(SRC:src/%.c=build/%.o) build/jsmn.o
 
 all: tgfs telegram-cli
 
-tgfs: $(OBJ) jsmn.o
-	$(CC) -o $(PROJECT_NAME) $(OBJ) jsmn.o $(LIBS) 
+tgfs: $(OBJ) 
+	$(CC) -o bin/$@ $(OBJ) $(LIBS) 
 
-%.o: %.c
+build/%.o: src/%.c
 	$(CC) $(CFLAGS) -o $@ $<
-
-jsmn.o: jsmn/jsmn.c
+	
+build/jsmn.o: src/jsmn/jsmn.c
 	$(CC) $(CFLAGS) -o $@ $<
 	
 telegram-cli:
 	make -C tg
+	cp tg/bin/telegram-cli bin/telegram-tgfs
 	
 distclean: clean
 	make -C tg clean
+	rm bin/telegram-tgfs
 	
 clean:
-	rm -rf *.o $(PROJECT_NAME)
+	rm build/* bin/tgfs
 
 install: all
-	mv tg/bin/telegram-cli /usr/bin/telegram-tgfs
-	mv tgfs /usr/bin/tgfs
+	mv bin/* /usr/bin/
 
 uninstall: 
 	rm /usr/bin/telegram-tgfs /usr/bin/tgfs
