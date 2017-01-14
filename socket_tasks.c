@@ -47,6 +47,7 @@ void get_downloads_dir(char* dir) {
 
 void socket_init() {
 	system("telegram-tgfs -d -vvvv -S ~/.tgfs/"SOCKET_NAME" --json --permanent-msg-ids --permanent-peer-ids -L /var/log/telegram-daemon/telegram-cli.log &");
+	/* Wait for creating socket */
 	sleep(1);
 	
 	char socket_name[255];
@@ -72,7 +73,7 @@ ssize_t socket_send_string(char* string, size_t size) {
 static size_t socket_read_answer_size(int fd) {
 	size_t result = 0;
 	size_t len = 7;
-	char* t = (char*)malloc(len*sizeof(char));
+	char t[len];
 	char digit = 0;
 	if(recv(fd, t, len, 0) < 0) 
 		return -1;
@@ -82,13 +83,6 @@ static size_t socket_read_answer_size(int fd) {
 			break;
 		result = result * 10 + (digit - '0');
 	} 
-	free(t);
-	return result;
-}
-
-size_t socket_read_only_size() {
-	size_t result = socket_read_answer_size(socket_fd);
-	recv(socket_fd, NULL, result + 1, 0);
 	return result;
 }
 
@@ -96,7 +90,6 @@ int socket_read_data(char** data, size_t* len) {
 	*len = socket_read_answer_size(socket_fd);
 	size_t size = (*len) + 1;
 	*data = (char*)malloc(size*sizeof(char));
-	assert(*data);
 	size_t result;
 	for(size_t i = 0; i < size; i += result) {
 		result = recv(socket_fd, *data + i, BUFFER_SIZE, 0);

@@ -377,6 +377,10 @@ int main(int argc, char *argv[]) {
     fuse_opt_parse(&args, NULL, NULL, NULL);
     fuse_opt_add_arg(&args, "-odirect_io");
     fuse_opt_add_arg(&args, "-ouse_ino");
+#ifdef DEBUG
+	fuse_opt_add_arg(&args, "-f");
+	/*fuse_opt_add_arg(&args, "-d");*/
+#endif
     
 	socket_init();
 	tg_init();

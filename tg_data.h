@@ -88,13 +88,13 @@ tg_msg_t* tg_msg_init();
 void tg_msg_add_front(tg_msg_t** head, tg_msg_t* item);
 
 int tg_init();
-tg_peer_t* tg_find_peer_by_name(const char* name, size_t len);
-int tg_search_msg(tg_peer_t* peer, int type, char* request);
+tg_peer_t* tg_find_peer_by_name(const char* name, const size_t len);
+int tg_search_msg(tg_peer_t* peer, const int media_type, const char* request);
 void tg_peer_search_msg_count(tg_peer_t* peer);
-tg_msg_t* tg_find_peer_msg_by_caption(tg_peer_t* peer, char* caption, int media_type);
-int tg_get_msg_array_by_media_type(tg_msg_t** msg, size_t* size, tg_peer_t* peer, int media_type);
-int tg_set_msg_array_by_media_type(tg_msg_t* msg, size_t size, tg_peer_t* peer, int media_type);
-int tg_download_file(char* download, tg_peer_t* peer, const char* filename, int media_type);
+tg_msg_t* tg_find_peer_msg_by_caption(const tg_peer_t* peer, const char* caption, const int media_type);
+int tg_get_msg_array_by_media_type(tg_msg_t** msg, size_t* size, const tg_peer_t* peer, const int media_type);
+int tg_set_msg_array_by_media_type(tg_msg_t* msg, const size_t size, tg_peer_t* peer, const int media_type);
+int tg_download_file(char* download, const tg_peer_t* peer, const char* filename, const int media_type);
 int tg_get_media_type_by_string(const char* msg);
 
 uint32_t tg_string_hash(const char* str);

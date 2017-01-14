@@ -1,12 +1,14 @@
 CC=@CC@
 CFLAGS=@CFLAGS@ -Wall -Werror -pedantic -c -std=c99 `pkg-config fuse --cflags` #-D DEBUG
-LIBS=@LIBS@ -lfuse -pthread
+LIBS=@LIBS@ `pkg-config fuse --libs`
 SRC=$(wildcard *.c)
 OBJ=$(SRC:%.c=%.o)
 PROJECT_NAME=tgfs
 
-all: $(OBJ) jsmn.o telegram-cli
-	$(CC) -o $(PROJECT_NAME) $(OBJ) jsmn.o $(LIBS) `pkg-config fuse --libs`
+all: tgfs telegram-cli
+
+tgfs: $(OBJ) jsmn.o
+	$(CC) -o $(PROJECT_NAME) $(OBJ) jsmn.o $(LIBS) 
 
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ $<
@@ -17,11 +19,13 @@ jsmn.o: jsmn/jsmn.c
 telegram-cli:
 	make -C tg
 	
+distclean: clean
+	make -C tg clean
+	
 clean:
 	rm -rf *.o $(PROJECT_NAME)
-	make -C tg clean
 
-install: make
+install: all
 	mv tg/bin/telegram-cli /usr/bin/telegram-tgfs
 	mv tgfs /usr/bin/tgfs
 

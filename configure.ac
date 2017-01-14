@@ -21,10 +21,10 @@ cd ..
 
 # Checks for programs.
 AC_PROG_CC
+AC_PROG_MAKE_SET
 
 # Checks for libraries.
 AC_SEARCH_LIBS([fuse_main], [fuse])
-
 
 # Checks for header files.
 AC_CHECK_HEADERS([fcntl.h malloc.h stddef.h stdint.h stdlib.h string.h sys/socket.h unistd.h])
