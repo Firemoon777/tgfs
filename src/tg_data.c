@@ -316,34 +316,14 @@ int tg_download_file(char* download, const tg_peer_t* peer, const char* filename
 	printf("Fileid: %s\n", file_id);
 	char request[255];
 	sprintf(request, "load_file %s\n", file_id);
-	/*switch(media_type) {
-		case TG_MEDIA_AUDIO:
 
-			break;
-		case TG_MEDIA_PHOTO:
-			sprintf(request, "load_photo %s\n", file_id);
-			break;
-		case TG_MEDIA_VIDEO:
-			sprintf(request, "load_video %s\n", file_id);
-			break;
-		case TG_MEDIA_DOCUMENT:
-			sprintf(request, "load_document %s\n", file_id);
-			break;
-		case TG_MEDIA_VOICE:
-			sprintf(request, "load_document %s\n", file_id);
-			break;
-		case TG_MEDIA_GIF:
-			sprintf(request, "load_document %s\n", file_id);
-			break;
-		default:
-			return 1;
-	}*/
 	pthread_mutex_lock(&lock);
 	socket_send_string(request, strlen(request));
 	char* json;
 	size_t len;
 	socket_read_data(&json, &len);
 	pthread_mutex_unlock(&lock);
+	
 	return json_parse_filelink(download, json);
 }
 
@@ -353,10 +333,12 @@ tg_fd* tg_init_fd() {
 	result->path_hash = 0;
 	result->next = NULL;
 	result->fd = -1;
+	result->file_type = TG_FILE_UNKNOWN;
 	return result;
 }
 
 void tg_add_fd(tg_fd** head, tg_fd* item) {
+	assert(item->file_type != TG_FILE_UNKNOWN);
 	if(head) {
 		item->next = *head;
 		*head = item;

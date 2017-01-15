@@ -14,6 +14,12 @@ typedef enum {
 	TG_MEDIA_GIF = 9
 } tg_media_type;
 
+typedef enum {
+	TG_FILE_UNKNOWN = 0,
+	TG_FILE_UPLOAD = 1,
+	TG_FILE_DOWNLOAD = 2
+} tg_file_type_t;
+
 typedef struct tg_msg_t {
 	char id[50];
 	char* caption;
@@ -65,6 +71,8 @@ typedef struct tg_fd {
 	int fd;
 	char* path;
 	uint32_t path_hash;
+	
+	tg_file_type_t file_type;
 	
 	char* real_path;
 	

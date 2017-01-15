@@ -238,6 +238,7 @@ static int tgfs_open(const char *path, struct fuse_file_info *fi)
 		d_file->path[len] = 0;
 		d_file->path_hash = tg_string_hash(d_file->path);
 		d_file->fd = open(name, O_RDONLY);
+		d_file->file_type = TG_FILE_DOWNLOAD;
 		if(d_file->fd > 0) {
 			tg_add_fd(&tgfs_fd, d_file);
 			return 0;
@@ -271,20 +272,18 @@ static int tgfs_create(const char *path, mode_t mode,
 	u_file->path[len] = 0;
 	u_file->path_hash = tg_string_hash(u_file->path);
 	char real_path[4096];
-	char real_name[255];
 	char ext[4];
 	strncpy(ext, path + len - 3, 3);
 	ext[3] = 0;
 	//get_downloads_dir(real_path);
 	strcpy(real_path, "/tmp/");
-	sprintf(real_name, "upload-%u.%s", u_file->path_hash, ext);
-	strcat(real_path, real_name);
+	strcat(real_path, strrchr(path, '/') + 1);
+	printf("real path: %s\n", real_path);
 	u_file->real_path = (char*)malloc(strlen(real_path) * sizeof(char));
 	strcpy(u_file->real_path, real_path);
 	u_file->fd = open(real_path,  O_WRONLY | O_CREAT, 0777);
-	
+	u_file->file_type = TG_FILE_UPLOAD;
 	if(u_file->fd > 0) {
-		
 		tg_add_fd(&tgfs_fd, u_file);
 		return 0;
 	}
@@ -306,22 +305,22 @@ static int tgfs_write(const char *path, const char *buf, size_t size, off_t offs
 int tgfs_release(const char *path, struct fuse_file_info *fi) {
 	printf("release:  %s\n", path);
 	
-	//size_t c[10];
+	size_t c[10];
 	size_t n = 0;
 	for(size_t i = 0; i < strlen(path); i++) {
 		if(path[i] == '/') {
-			//c[n] = i + 1;
+			c[n] = i + 1;
 			n++;
 		}
 	}
-	//c[n] = strlen(path) + 1;
+	c[n] = strlen(path) + 1;
 	
-	if(n == 2) {
-		
-		tg_fd* f = tg_search_fd(tgfs_fd, path);
-		if(f == NULL) {
-			return -ENOENT;
-		}
+	tg_fd* f = tg_search_fd(tgfs_fd, path);
+	if(f == NULL) {
+		return -ENOENT;
+	}
+	
+	if(n >= 2  && f->file_type == TG_FILE_UPLOAD) {
 		
 		char buff[1000];
 		char req[1000];
@@ -331,20 +330,42 @@ int tgfs_release(const char *path, struct fuse_file_info *fi) {
 			
 		strncpy(buff, path + 1, s - 1);
 		buff[s-1] = 0;
-		sprintf(req, "post_document %s %s\n", buff, f->real_path/*, path + s + 1*/);
+		if(n == 3) {
+			int media_type = tg_get_media_type_by_string(path + c[1]);
+			switch(media_type) {
+				case TG_MEDIA_PHOTO:
+					sprintf(req, "post_photo %s %s\n", buff, f->real_path);
+					break;
+				case TG_MEDIA_DOCUMENT:
+					sprintf(req, "post_document %s %s\n", buff, f->real_path);
+					break;
+				case TG_MEDIA_VIDEO:
+					sprintf(req, "post_video %s %s\n", buff, f->real_path);
+					break;
+				case TG_MEDIA_AUDIO:
+					sprintf(req, "post_audio %s %s\n", buff, f->real_path);
+					break;
+				default:
+					sprintf(req, "post_file %s %s\n", buff, f->real_path);
+					break;
+			}
+		} else {
+			sprintf(req, "post_file %s %s\n", buff, f->real_path);
+		}
 		printf("req: %s\n", req);
-		
+
 		pthread_mutex_lock(&lock);
 		socket_send_string(req, strlen(req));
 		char* json;
 		size_t len;
 		socket_read_data(&json, &len);
-		pthread_mutex_unlock(&lock);
-		remove(f->real_path);
-		close(f->fd);
-		tg_remove_fd(&tgfs_fd, f);
-		
+		pthread_mutex_unlock(&lock);		
 	}
+	
+	remove(f->real_path);
+	close(f->fd);
+	tg_remove_fd(&tgfs_fd, f);
+	
 	return 0;
 }
 
