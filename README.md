@@ -101,7 +101,14 @@ $ ls -lh  Firemoon777/Voice/
 
 Sending document to user
 ```
-cp ~/test.zip test/Firemoon777/
+cp ~/test.zip test/Documents/Firemoon777/
+```
+
+Sending any media to user
+```
+cp ~/000.gif mnt/Firemoon777/ # Uploaded as gif
+cp ~/001.jpg mnt/Firemoon777/ # Uploaded as photo
+cp ~/002.zip mnt/Firemoon777/ # Uploaded as document
 ```
 
 ## To do list:
