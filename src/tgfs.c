@@ -31,13 +31,10 @@ char tgfs_buff[1000];
 
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
-	//printf("getattr(): %s\n", path);
 	memset(stbuf, 0, sizeof(struct stat));
 	
 	stbuf->st_uid = getuid();
 	stbuf->st_gid = getgid();
-	
-	//printf("buff: %s\n", tgfs_buff);
 	
 	tg_fd* f = tg_search_fd(tgfs_fd, path);
 	if(f) {
@@ -264,6 +261,22 @@ static int tgfs_create(const char *path, mode_t mode,
 						
 	(void) fi;
 	printf("create(): %s\n", path);
+	
+	size_t c[10];
+	size_t n = 0;
+	for(size_t i = 0; i < strlen(path); i++) {
+		if(path[i] == '/') {
+			c[n] = i + 1;
+			n++;
+		}
+	}
+	c[n] = strlen(path) + 1;
+	
+	tg_peer_t* peer = tg_find_peer_by_name(path + 1, c[1] - c[0] - 1);
+
+	if(peer->peer_type == TG_CHANNEL) {
+		return -EACCES;
+	}
 
 	size_t len = strlen(path);
 	tg_fd* u_file = tg_init_fd();
