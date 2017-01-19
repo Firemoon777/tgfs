@@ -12,9 +12,6 @@
 
 #include "socket_tasks.h"
 
-#define SOCKET_NAME "tg_socket"
-#define BUFFER_SIZE 1000
-
 int socket_fd = -1;
 
 static int socket_open(const char* name) {
@@ -50,7 +47,7 @@ void socket_init() {
 	/* Wait for creating socket */
 	sleep(1);
 	
-	char socket_name[255];
+	char socket_name[MAX_FILEPATH_SIZE];
 	get_home_dir(socket_name);
 	strcat(socket_name, SOCKET_NAME);
 	socket_fd = socket_open(socket_name);
@@ -58,7 +55,7 @@ void socket_init() {
 
 void socket_close() {
 	shutdown(socket_fd, 2);
-	char home[255];
+	char home[MAX_FILEPATH_SIZE];
 	get_home_dir(home);
 	strcat(home, SOCKET_NAME);
 	system("pkill -9 telegram-tgfs");
