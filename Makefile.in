@@ -12,7 +12,7 @@ tgfs: $(OBJ)
 build/%.o: src/%.c
 	$(CC) $(CFLAGS) -o $@ $<
 	
-build/jsmn.o: src/jsmn/jsmn.c
+build/jsmn.o: lib/jsmn/jsmn.c
 	$(CC) $(CFLAGS) -o $@ $<
 	
 telegram-cli:
