@@ -118,7 +118,7 @@ static void json_parse_media(const char* json, const jsmntok_t* tokens, size_t* 
 		i++;
 		r += 2;
 	}
-	*pos = r - 1;
+	*pos = r;
 }
 
 static void json_make_caption(tg_msg_t* msg, const int media_type) {
@@ -139,7 +139,7 @@ static void json_make_caption(tg_msg_t* msg, const int media_type) {
 	} else {
 		assert(media_type > 0);		
 		char time[20];
-		msg->caption = (char*)malloc(sizeof(time) + (3)*sizeof(char));
+		msg->caption = (char*)malloc(27*sizeof(char));
 		strftime(time, sizeof(time), "%Y-%m-%d %H:%M:%S", localtime(&msg->timestamp));
 		sprintf(msg->caption, "%s - %u%s", time, (unsigned)(tg_string_hash(msg->id) % 100), ext);
 	}
@@ -148,6 +148,8 @@ static void json_make_caption(tg_msg_t* msg, const int media_type) {
 
 static void json_parse_msg(const char* json, const jsmntok_t* tokens, size_t* pos, tg_msg_t* msg, const int media_type) {
 	size_t r = *pos + 1, i = 0;
+	printf("Parse started\n");
+	assert(tokens[*pos].size > 1);
 			
 	while(i < tokens[*pos].size) {	
 		size_t token_size = tokens[r].end - tokens[r].start;
@@ -180,6 +182,7 @@ static void json_parse_msg(const char* json, const jsmntok_t* tokens, size_t* po
 #ifdef DEBUG
 	tg_print_msg_t(msg);
 #endif
+	
 }
 
 int json_parse_dialog_list(const char* json, const size_t size, tg_peer_t** peers, size_t* peers_count) {
@@ -236,6 +239,7 @@ int json_parse_messages(const char* json, const size_t size, tg_peer_t* peer, co
 			parsed++;
 		}
 	}
+	printf("msgs done\n");
 	free(tokens);
 	tg_set_msg_array_by_media_type(messages, message_count + parsed, peer, media_type);
 	return parsed;
