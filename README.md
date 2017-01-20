@@ -1,4 +1,4 @@
-## tgfs
+## tgfs [![Build Status](https://travis-ci.org/Firemoon777/tgfs.svg?branch=master)](https://travis-ci.org/Firemoon777/tgfs)
 
 User space filesystem for [Telegram](http://telegram.org) attachments
 
@@ -10,38 +10,38 @@ Documentation for MTproto protocol is available here: http://core.telegram.org/m
 
 ### Installation
 
-Install FUSE
+##### Install libs
 
 Debian:
 
 ```
-sudo apt-get install fuse libfuse-dev
+sudo apt-get install fuse libfuse-dev libjansson-dev libreadline-dev libssl-dev
 ```
 	 
 Arch Linux:
 
 ```
-sudo packman -S fuse2
+sudo packman -S fuse2 jansson readline
 ```
 
 Fedora:
 ```
-sudo dnf install fuse-devel
+sudo dnf install fuse-devel libjansson-devel readline-devel readline-devel openssl-devel
 ```
 
-Clone GitHub Repository
+##### Clone GitHub Repository
 
 ```
 git clone --recursive https://github.com/Firemoon777/tgfs.git && cd tgfs
 ```
 
-Build
+##### Build
 
 ```
 ./configure && make
 ```
 	 
-Then, install
+##### Then, install
 
 ```
 sudo make install
