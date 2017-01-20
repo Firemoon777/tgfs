@@ -10,7 +10,7 @@ AC_INIT([tgfs], [0.1])
 	echo '   [Configuring telegram-cli]   ' | sed -e's/./-/g'
 ]
 cd tg
-./configure
+./configure --disable-libconfig --disable-liblua --disable-python
 cd ..
 
 [
