@@ -1,5 +1,5 @@
 CC=@CC@
-CFLAGS=@CFLAGS@ -Wall -Werror -pedantic -c -std=c99 `pkg-config fuse --cflags` #-D DEBUG
+CFLAGS=@CFLAGS@ -Wall -Werror -pedantic -c -std=c99 `pkg-config fuse --cflags` -Wno-unused-result
 LIBS=@LIBS@ `pkg-config fuse --libs`
 SRC=$(wildcard src/*.c) 
 OBJ=$(SRC:src/%.c=build/%.o) build/jsmn.o
