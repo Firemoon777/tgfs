@@ -15,18 +15,18 @@ Documentation for MTproto protocol is available here: http://core.telegram.org/m
 Debian:
 
 ```
-sudo apt-get install fuse libfuse-dev libjansson-dev libreadline-dev libssl-dev
+sudo apt-get install fuse libfuse-dev libjansson-dev libreadline-dev libssl-dev libevent-dev
 ```
 	 
 Arch Linux:
 
 ```
-sudo packman -S fuse2 jansson readline
+sudo packman -S fuse2 jansson readline libevent
 ```
 
 Fedora:
 ```
-sudo dnf install fuse-devel libjansson-devel readline-devel readline-devel openssl-devel
+sudo dnf install fuse-devel libjansson-devel readline-devel readline-devel openssl-devel libevent-devel
 ```
 
 ##### Clone GitHub Repository
