@@ -80,8 +80,13 @@ typedef struct tg_fd {
 } tg_fd;
 
 typedef struct {
+     int enable_unlink;
+} tg_config;
+
+typedef struct {
 	tg_peer_t* peers;
 	size_t peers_count;
+	tg_config config;
 } tg_data_t;
 
 #ifdef DEBUG

@@ -20,12 +20,15 @@
 #include "jsmn/jsmn.h"
 #include "tg_data.h"
 
+#define PACKAGE_VERSION "0.1"
+
+#define EQ_STR_LIT( x, lit ) (strncmp( (x), (lit), sizeof(lit)) == 0 )
+#define TGFS_OPT(t, p, v) { t, offsetof(struct tgfs_config, p), v }
+
 #define TGLUF_SELF (1 << 19)
 #define TGLUF_HAS_PHOTO (1 << 1)
 
 #define PATH_MAX_LEVEL 10
-
-#define EQ_STR_LIT( x, lit ) (strncmp( (x), (lit), sizeof(lit)) == 0 )
 
 extern tg_data_t tg;
 extern pthread_mutex_t lock;
@@ -301,6 +304,7 @@ static int tgfs_create(const char *path, mode_t mode,
 static int tgfs_write(const char *path, const char *buf, size_t size, off_t offset, 
 			struct fuse_file_info *fi) {
 	(void) fi;
+	
 	tg_fd* u_file = tg_search_fd(tgfs_fd, path);
 	int res = pwrite(u_file->fd, buf, size, offset);
 	printf("write: %s #%i(%li -> %li) = %i\n", path, u_file->fd, size, offset, res);
@@ -390,11 +394,54 @@ static const struct fuse_operations tgfs_oper = {
 	.release	= tgfs_release
 };
 
+enum {
+	TGFS_KEY_ENABLE_UNLINK,
+	TGFS_KEY_VERSION,
+	TGFS_KEY_HELP	
+}
+
+static struct fuse_opt tgfs_opts[] = {
+     FUSE_OPT_KEY("--enable-unlink", TGFS_KEY_ENABLE_UNLINK),
+     FUSE_OPT_KEY("-V",              TGFS_KEY_VERSION),
+     FUSE_OPT_KEY("--version",       TGFS_KEY_VERSION),
+     FUSE_OPT_KEY("-h",              TGFS_KEY_HELP),
+     FUSE_OPT_KEY("--help",          TGFS_KEY_HELP),
+     FUSE_OPT_END
+};
+
+static int tgfs_opt_proc(void *data, const char *arg, int key, struct fuse_args *outargs) {
+	switch(key) {
+		case TGFS_KEY_ENABLE_UNLINK:
+			tg.config.enable_unlink = 1;
+			break;
+		case TGFS_KEY_HELP:
+			fprintf(stderr,
+                     "usage: %s mountpoint [options]\n"
+                     "\n"
+                     "general options:\n"
+                     "    -o opt,[opt...]  mount options\n"
+                     "    -h   --help      print help\n"
+                     "    -V   --version   print version\n"
+                     "\n"
+                     "tgfs options:\n"
+                     "    --enable-unlink  enable file removing\n"
+                     , outargs->argv[0]);
+			exit(1);
+			
+		case TGFS_KEY_VERSION:
+			fprintf(stderr, "tgfs version %s\n", PACKAGE_VERSION);
+			exit(0);
+	}
+	return 1;
+}
+
 int main(int argc, char *argv[]) {
 	
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 
-    fuse_opt_parse(&args, NULL, NULL, NULL);
+	tg.config.enable_unlink = 0;
+
+    fuse_opt_parse(&args, NULL, tgfs_opts, tgfs_opt_proc);
     fuse_opt_add_arg(&args, "-odirect_io");
     fuse_opt_add_arg(&args, "-ouse_ino");
 #ifdef DEBUG
