@@ -122,6 +122,7 @@ cp ~/002.zip mnt/Firemoon777/ # Uploaded as document
 - No dialog list reloading (if you start a new chat, you should unmount and mount tgfs again)
 - No progress bars (big file will be copied in few seconds, but appears in tg within a minute)
 - No multithreading
+- Files with spaces in name doesn't upload
 
 ## Join 
 
