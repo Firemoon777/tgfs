@@ -389,7 +389,43 @@ static int tgfs_unlink(const char* path) {
 		return -ENOSYS;
 	}
 	printf("unlink: %s\n", path);
-	return 0;
+	
+	size_t c[PATH_MAX_LEVEL];
+	size_t n = slashes_to_index_array(c, path);
+	
+	if(n == 3) {
+		tg_peer_t* peer = tg_find_peer_by_name(path + 1, c[1] - c[0] - 1);
+		size_t message_count;
+		tg_msg_t* messages, *prev;
+		int media_type = tg_get_media_type_by_string(path + c[1]);
+		printf("n = %s\n", peer->print_name);
+		uint32_t hash = tg_string_hash(path + c[2]);
+		tg_get_msg_array_by_media_type(&messages, &message_count, peer, media_type);
+		prev = messages;
+		while(messages) {
+			if(messages->caption_hash == hash) {
+				if(strcmp(messages->caption, path + c[2]) == 0) {
+					char req[1000];
+					sprintf(req, "delete_msg %s\n", messages->id);
+					
+					pthread_mutex_lock(&lock);
+					socket_send_string(req, strlen(req));
+					char* json;
+					size_t len;
+					socket_read_data(&json, &len);
+					pthread_mutex_unlock(&lock);
+					
+					prev->next = messages->next;
+					tg_msg_free(messages);
+					
+					return 0;
+				}
+			}
+			prev = messages;
+			messages = messages->next;
+		}
+	}
+	return -ENOENT;
 }
 
 static const struct fuse_operations tgfs_oper = {
