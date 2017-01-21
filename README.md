@@ -10,7 +10,7 @@ Documentation for MTproto protocol is available here: http://core.telegram.org/m
 
 ### Installation
 
-##### Install libs
+#### Install libs
 
 Debian:
 
@@ -29,19 +29,19 @@ Fedora:
 sudo dnf install fuse-devel libjansson-devel readline-devel readline-devel openssl-devel libevent-devel
 ```
 
-##### Clone GitHub Repository
+#### Clone GitHub Repository
 
 ```
 git clone --recursive https://github.com/Firemoon777/tgfs.git && cd tgfs
 ```
 
-##### Build
+#### Build
 
 ```
 ./configure && make
 ```
 	 
-##### Then, install
+#### Then, install
 
 ```
 sudo make install
@@ -104,7 +104,7 @@ Sending document to user
 cp ~/test.zip test/Documents/Firemoon777/
 ```
 
-Sending any media to user
+Sending any media to user (file extention is important!)
 ```
 cp ~/000.gif mnt/Firemoon777/ # Uploaded as gif
 cp ~/001.jpg mnt/Firemoon777/ # Uploaded as photo
@@ -116,6 +116,12 @@ cp ~/002.zip mnt/Firemoon777/ # Uploaded as document
 - [ ] Setting profile photo with `cp`
 - [ ] Removing attachments with `rm`
 - [ ] FIFO-like files for chatting
+
+## Known issues
+
+- No dialog list reloading (if you start a new chat, you should unmount and mount tgfs again)
+- No progress bars (big file will be copied in few seconds, but appears in tg within a minute)
+- No multithreading
 
 ## Join 
 
