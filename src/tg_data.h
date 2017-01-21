@@ -87,6 +87,7 @@ typedef struct {
 	tg_peer_t* peers;
 	size_t peers_count;
 	tg_config config;
+	time_t mount_time;
 } tg_data_t;
 
 #ifdef DEBUG

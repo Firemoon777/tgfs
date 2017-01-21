@@ -54,17 +54,19 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 	stbuf->st_uid = getuid();
 	stbuf->st_gid = getgid();
 	
-	tg_fd* f = tg_search_fd(tgfs_fd, path);
-	if(f) {
-		printf("Ok\n");
-		stbuf->st_mode = S_IFREG | 0200;
-		stbuf->st_nlink = 1;
+	if (strcmp(path, "/") == 0) {
+		stbuf->st_mode = S_IFDIR | 0500;
+		stbuf->st_nlink = 2 + tg.peers_count;
+		stbuf->st_atime = tg.mount_time;
+		stbuf->st_ctime = tg.mount_time;
+		stbuf->st_mtime = tg.mount_time;
 		return 0;
 	}
 	
-	if (strcmp(path, "/") == 0) {
-		stbuf->st_mode = S_IFDIR | 0500;
-		stbuf->st_nlink = 2;
+	tg_fd* f = tg_search_fd(tgfs_fd, path);
+	if(f) {
+		stbuf->st_mode = S_IFREG | 0200;
+		stbuf->st_nlink = 1;
 		return 0;
 	}
 	
@@ -101,19 +103,19 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 			return 0;
 		case 2:
 			if(EQ_STR_LIT(path + c[1], "Photo")) {
-				stbuf->st_mode = S_IFDIR | 0500;
+				stbuf->st_mode = S_IFDIR | 0500 | (tg.config.enable_unlink * 0200);
 				stbuf->st_nlink = peer->photo_size;
 				return 0;
 			} else if(EQ_STR_LIT(path + c[1], "Audio")) {
-				stbuf->st_mode = S_IFDIR | 0500;
+				stbuf->st_mode = S_IFDIR | 0500 | (tg.config.enable_unlink * 0200);
 				stbuf->st_nlink = peer->audio_size;
 				return 0;
 			} else if(EQ_STR_LIT(path + c[1], "Voice")) {
-				stbuf->st_mode = S_IFDIR | 0500;
+				stbuf->st_mode = S_IFDIR | 0500 | (tg.config.enable_unlink * 0200);
 				stbuf->st_nlink = peer->voice_size;
 				return 0;
 			} else if(EQ_STR_LIT(path + c[1], "Documents")) {
-				stbuf->st_mode = S_IFDIR | 0500;
+				stbuf->st_mode = S_IFDIR | 0500 | (tg.config.enable_unlink * 0200);
 				stbuf->st_nlink = peer->documents_size;
 				return 0;
 			} else if(EQ_STR_LIT(path + c[1], "Video")) {
@@ -141,7 +143,7 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 				tg_get_msg_array_by_media_type(&messages, &message_count, peer, media_type);
 				while(messages) {
 					if(messages->caption_hash == hash) {
-						stbuf->st_mode = S_IFREG | 0400;
+						stbuf->st_mode = S_IFREG | 0400  | (tg.config.enable_unlink * 0200);
 						stbuf->st_nlink = 1;
 						stbuf->st_mtime = messages->timestamp;
 						stbuf->st_size = messages->size;
@@ -382,6 +384,14 @@ static void* tgfs_init(struct fuse_conn_info *conn) {
 	return NULL;
 }
 
+static int tgfs_unlink(const char* path) {
+	if(tg.config.enable_unlink == 0) {
+		return -ENOSYS;
+	}
+	printf("unlink: %s\n", path);
+	return 0;
+}
+
 static const struct fuse_operations tgfs_oper = {
 	.init 		= tgfs_init,
 	.getattr	= tgfs_getattr,
@@ -391,14 +401,15 @@ static const struct fuse_operations tgfs_oper = {
 	.write		= tgfs_write,
 	.create     = tgfs_create,
 	.truncate   = tgfs_truncate,
-	.release	= tgfs_release
+	.release	= tgfs_release,
+	.unlink		= tgfs_unlink
 };
 
 enum {
 	TGFS_KEY_ENABLE_UNLINK,
 	TGFS_KEY_VERSION,
 	TGFS_KEY_HELP	
-}
+};
 
 static struct fuse_opt tgfs_opts[] = {
      FUSE_OPT_KEY("--enable-unlink", TGFS_KEY_ENABLE_UNLINK),
@@ -413,7 +424,9 @@ static int tgfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
 	switch(key) {
 		case TGFS_KEY_ENABLE_UNLINK:
 			tg.config.enable_unlink = 1;
-			break;
+			fprintf(stderr, "Warning: unlink enabled!\n");
+			return 0;
+		
 		case TGFS_KEY_HELP:
 			fprintf(stderr,
                      "usage: %s mountpoint [options]\n"
@@ -425,11 +438,16 @@ static int tgfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
                      "\n"
                      "tgfs options:\n"
                      "    --enable-unlink  enable file removing\n"
+                     "\n"
                      , outargs->argv[0]);
+            fuse_opt_add_arg(outargs, "-ho");
+            fuse_main(outargs->argc, outargs->argv, &tgfs_oper, NULL);
 			exit(1);
 			
 		case TGFS_KEY_VERSION:
 			fprintf(stderr, "tgfs version %s\n", PACKAGE_VERSION);
+			fuse_opt_add_arg(outargs, "--version");
+            fuse_main(outargs->argc, outargs->argv, &tgfs_oper, NULL);
 			exit(0);
 	}
 	return 1;

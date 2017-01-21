@@ -31,6 +31,7 @@ int tg_init() {
         printf("\n mutex init failed\n");
         exit(1);
     }
+    tg.mount_time = time(NULL);
 	char* json;
 	size_t len;
 	char* request = "dialog_list\n";
