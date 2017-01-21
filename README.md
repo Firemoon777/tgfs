@@ -111,10 +111,15 @@ cp ~/001.jpg mnt/Firemoon777/ # Uploaded as photo
 cp ~/002.zip mnt/Firemoon777/ # Uploaded as document
 ```
 
+Removing media (required ```--enable-unlink``` mount option)
+```
+rm mnt/tgfs/Photo/remove_test.jpg
+```
+
 ## To do list:
 - [ ] Show profile picture
 - [ ] Setting profile photo with `cp`
-- [ ] Removing attachments with `rm`
+- [X] Removing attachments with `rm`
 - [ ] FIFO-like files for chatting
 
 ## Known issues
