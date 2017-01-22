@@ -201,7 +201,6 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 				tg_msg_t* msg;
 				size_t size;
 				tg_get_msg_array_by_media_type(&msg, &size, peer, media_type);
-					
 				while(msg) {
 					filler(buf, msg->caption, NULL, 0);
 					msg = msg->next;
@@ -396,17 +395,18 @@ static int tgfs_unlink(const char* path) {
 	if(n == 3) {
 		tg_peer_t* peer = tg_find_peer_by_name(path + 1, c[1] - c[0] - 1);
 		size_t message_count;
-		tg_msg_t* messages, *prev;
+		tg_msg_t* messages, *head;
 		int media_type = tg_get_media_type_by_string(path + c[1]);
 		printf("n = %s\n", peer->print_name);
 		uint32_t hash = tg_string_hash(path + c[2]);
 		tg_get_msg_array_by_media_type(&messages, &message_count, peer, media_type);
-		prev = messages;
+		head = messages;
 		while(messages) {
 			if(messages->caption_hash == hash) {
 				if(strcmp(messages->caption, path + c[2]) == 0) {
 					char req[1000];
 					sprintf(req, "delete_msg %s\n", messages->id);
+					printf("req: %s\n", req);
 					
 					pthread_mutex_lock(&lock);
 					socket_send_string(req, strlen(req));
@@ -415,13 +415,13 @@ static int tgfs_unlink(const char* path) {
 					socket_read_data(&json, &len);
 					pthread_mutex_unlock(&lock);
 					
-					prev->next = messages->next;
-					tg_msg_free(messages);
+					tg_msg_remove(&head, messages);
+					message_count--;
+					tg_set_msg_array_by_media_type(head, message_count, peer, media_type);
 					
 					return 0;
 				}
 			}
-			prev = messages;
 			messages = messages->next;
 		}
 	}

@@ -231,13 +231,38 @@ tg_msg_t* tg_find_peer_msg_by_caption(const tg_peer_t* peer, const char* caption
 	return NULL;
 }
 
-void tg_msg_free(tg_msg_t* msg) {
+void tg_msg_free_tree(tg_msg_t* msg) {
 	tg_msg_t* temp;
 	while(msg) {
 		temp = msg->next;
 		free(msg->caption);
 		free(msg);
 		msg = temp;
+	}
+}
+
+void tg_msg_free(tg_msg_t* msg) {
+	free(msg->caption);
+	free(msg);
+}
+
+void tg_msg_remove(tg_msg_t **head, tg_msg_t* item) {
+	if(item == NULL || *head == NULL) {
+		return;
+	}
+	if(*head == item) {
+		*head = item->next;
+		tg_msg_free(item);
+	} else {
+		tg_msg_t* t = *head;
+		while(t->next) {
+			if(t->next == item) {
+				t->next = t->next->next;
+				tg_msg_free(item);
+				return;
+			}
+			t = t->next;
+		}
 	}
 }
 
@@ -274,6 +299,7 @@ int tg_search_msg(tg_peer_t* peer, const int media_type, const char* request) {
 	int count = 100;
 	int offset = 0;
 	result = 2;
+	time_t start_time = time(NULL) - 60;
 	while(result > 1) {
 		sprintf(str, "search %s %i %i 0 0 %i %s\n", peer->print_name, media_type, count, offset, request);
 		
@@ -291,7 +317,7 @@ int tg_search_msg(tg_peer_t* peer, const int media_type, const char* request) {
 		free(json);
 		json = NULL;
 	}
-	peer->cached_time[media_type] = time(NULL) - 3 * 60;
+	peer->cached_time[media_type] = start_time;
 	free(str);
 	return result;
 }
@@ -366,7 +392,7 @@ void tg_remove_fd(tg_fd **head, tg_fd* item) {
 		while(t->next) {
 			if(t->next == item) {
 				t->next = t->next->next;
-				free(t->next);
+				free(item);
 				return;
 			}
 			t = t->next;

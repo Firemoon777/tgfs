@@ -100,6 +100,7 @@ void tg_print_msg_t(tg_msg_t* msg);
 void tg_msg_free(tg_msg_t* msg);
 tg_msg_t* tg_msg_init();
 void tg_msg_add_front(tg_msg_t** head, tg_msg_t* item);
+void tg_msg_remove(tg_msg_t **head, tg_msg_t* item);
 
 int tg_init();
 tg_peer_t* tg_find_peer_by_name(const char* name, const size_t len);

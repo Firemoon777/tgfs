@@ -148,7 +148,6 @@ static void json_make_caption(tg_msg_t* msg, const int media_type) {
 
 static void json_parse_msg(const char* json, const jsmntok_t* tokens, size_t* pos, tg_msg_t* msg, const int media_type) {
 	size_t r = *pos + 1, i = 0;
-	printf("Parse started\n");
 	assert(tokens[*pos].size > 1);
 			
 	while(i < tokens[*pos].size) {	
