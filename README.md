@@ -8,7 +8,7 @@ Documentation for Telegram API is available here: http://core.telegram.org/api
 
 Documentation for MTproto protocol is available here: http://core.telegram.org/mtproto
 
-### Installation
+### Installation from source
 
 #### Install libs
 
@@ -21,7 +21,7 @@ sudo apt-get install fuse libfuse-dev libjansson-dev libreadline-dev libssl-dev 
 Arch Linux:
 
 ```
-sudo packman -S fuse2 jansson readline libevent
+sudo pacman -S fuse2 jansson readline libevent
 ```
 
 Fedora:
@@ -45,6 +45,11 @@ git clone --recursive https://github.com/Firemoon777/tgfs.git && cd tgfs
 
 ```
 sudo make install
+```
+
+### Installation from AUR (Archlinux)
+```
+yaourt -S tgfs
 ```
 	 
 ### Startup
