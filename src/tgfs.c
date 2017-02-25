@@ -38,7 +38,7 @@ tg_fd* tgfs_fd = NULL;
 static int slashes_to_index_array(size_t* a, const char *path) {
 	size_t n = 0;
 	for(size_t i = 0; i < strlen(path); i++) {
-		if(path[i] == '/') {
+		if(path[i] == '/' && n < PATH_MAX_LEVEL - 1) {
 			a[n] = i + 1;
 			n++;
 		}
