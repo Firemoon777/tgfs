@@ -88,7 +88,7 @@ void tg_print_peer_t(tg_peer_t* peer) {
 #endif
 
 void tg_peer_search_msg_count(tg_peer_t* peer) {
-	if(strlen(peer->print_name) > 0) {
+	if(strlen(peer->peer_name) > 0) {
 		printf("Try to count peer %s\n", peer->print_name);
 		size_t l = 0, r = 130000;
 		size_t middle;
@@ -97,7 +97,7 @@ void tg_peer_search_msg_count(tg_peer_t* peer) {
 		size_t size = 0;
 		while(l + 1 < r) {
 			middle = (l + r) / 2;
-			sprintf(str, "history %s 1 %li\n", peer->print_name, middle);
+			sprintf(str, "history %s 1 %li\n", peer->peer_name, middle);
 			printf("debug: %s", str);
 			socket_send_string(str, strlen(str));
 			socket_read_data(&data, &size); 
@@ -301,7 +301,7 @@ int tg_search_msg(tg_peer_t* peer, const int media_type, const char* request) {
 	result = 2;
 	time_t start_time = time(NULL) - 60;
 	while(result > 1) {
-		sprintf(str, "search %s %i %i 0 0 %i %s\n", peer->print_name, media_type, count, offset, request);
+		sprintf(str, "search %s %i %i 0 0 %i %s\n", peer->peer_name, media_type, count, offset, request);
 		
 		pthread_mutex_lock(&lock);
 		socket_send_string(str, strlen(str));
@@ -311,7 +311,7 @@ int tg_search_msg(tg_peer_t* peer, const int media_type, const char* request) {
 		assert(json);
 		result = json_parse_messages(json, len, peer, media_type);
 #ifdef DEBUG
-		printf("tg_search_msg(%s, %i) = %i\n", peer->print_name, offset, result);
+		printf("tg_search_msg(%s, %i) = %i\n", peer->peer_name, offset, result);
 #endif
 		offset += count;
 		free(json);

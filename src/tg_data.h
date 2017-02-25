@@ -44,6 +44,7 @@ typedef struct {
 	uint64_t peer_id;
 	
 	char* print_name;
+	char* peer_name;
 	uint32_t print_name_hash;
 	
 	time_t last_seen;

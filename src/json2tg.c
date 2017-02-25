@@ -9,6 +9,7 @@
 #include "json2tg.h"
 #include "jsmn/jsmn.h"
 
+
 static time_t json_datetime_to_posix(const char* json) {
 	time_t result = 0;
 	char time[20];
@@ -31,6 +32,15 @@ static void json_parse_skip(const char* json, const jsmntok_t* tokens, size_t *r
 			continue;
 		}
 		*r += 2;
+	}
+}
+
+static void json_string_replace_slash(char* str) {
+	size_t n = strlen(str);
+	for(size_t i = 0; i < n; i++) {
+		if(str[i] == '/') {
+			str[i] = '_';
+		}
 	}
 }
 
@@ -62,8 +72,11 @@ static void json_parse_peer(const char* json, const jsmntok_t* tokens, size_t* p
 			} 
 		} else if(strncmp("print_name", json + tokens[r].start, token_size) == 0) {
 			peer->print_name = (char*)malloc((inner_size + 1) * sizeof(char));
+			peer->peer_name = (char*)malloc((inner_size + 1) * sizeof(char));
 			strncpy(peer->print_name, json + tokens[r+1].start, inner_size);
 			peer->print_name[inner_size] = 0;
+			strcpy(peer->peer_name, peer->print_name);
+			json_string_replace_slash(peer->print_name);
 			peer->print_name_hash = tg_string_hash(peer->print_name);
 		} else if(strncmp("when", json + tokens[r].start, token_size) == 0) {
 			peer->last_seen = json_datetime_to_posix(json + tokens[r+1].start);
@@ -85,15 +98,6 @@ static void json_parse_peer(const char* json, const jsmntok_t* tokens, size_t* p
 #ifdef DEBUG
 	tg_print_peer_t(peer);
 #endif
-}
-
-static void json_string_replace_slash(char* str) {
-	size_t n = strlen(str);
-	for(size_t i = 0; i < n; i++) {
-		if(str[i] == '/') {
-			str[i] = '_';
-		}
-	}
 }
 
 static void json_parse_media(const char* json, const jsmntok_t* tokens, size_t* pos, tg_msg_t* msg) {
