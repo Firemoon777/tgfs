@@ -38,7 +38,7 @@ tg_fd* tgfs_fd = NULL;
 static int slashes_to_index_array(size_t* a, const char *path) {
 	size_t n = 0;
 	for(size_t i = 0; i < strlen(path); i++) {
-		if(path[i] == '/') {
+		if(path[i] == '/' && n < PATH_MAX_LEVEL - 1) {
 			a[n] = i + 1;
 			n++;
 		}
@@ -334,6 +334,8 @@ int tgfs_release(const char *path, struct fuse_file_info *fi) {
 			
 		strncpy(buff, path + 1, s - 1);
 		buff[s-1] = 0;
+		tg_peer_t* peer = tg_find_peer_by_name(buff, strlen(buff));
+		strcpy(buff, peer->peer_name);
 		if(n == 3) {
 			int media_type = tg_get_media_type_by_string(path + c[1]);
 			switch(media_type) {
