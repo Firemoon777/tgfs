@@ -14,10 +14,20 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <assert.h>
 
-#include "tgl/tgl.h"
+#include <tgl/tgl.h>
+#include <tgl/tgl-binlog.h>
+#include <tgl/tgl-net.h>
+#include <tgl/tgl-timers.h>
+#include <tgl/tgl-queries.h>
 
-#define PACKAGE_VERSION "0.1"
+
+#define TGFS_APP_HASH "36722c72256a24c1225de00eb6a1ca74"
+#define TGFS_APP_ID 2899
+#define PACKAGE_VERSION "0.2"
+
+struct tgl_state *TLS;
 
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
@@ -130,18 +140,37 @@ static int tgfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
 	return 1;
 }
 
+extern struct tgl_update_callback upd_cb;
+
+void tgfs_tgl_init() {
+	TLS = tgl_state_alloc();
+	tgl_set_rsa_key(TLS, "tg-server.pub");
+	tgl_set_download_directory(TLS, "~/.tgfs");
+	tgl_set_callback(TLS, &upd_cb);
+
+	tgl_set_net_methods (TLS, &tgl_conn_methods);
+	tgl_set_timer_methods (TLS, &tgl_libevent_timers);
+
+
+	tgl_register_app_id (TLS, TGFS_APP_ID, TGFS_APP_HASH); 
+  	tgl_set_app_version (TLS, "tgfs " PACKAGE_VERSION);
+
+	int init = tgl_init(TLS);
+	assert(init >= 0);
+}
+
 int main(int argc, char *argv[]) {
 	
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-
-
-    fuse_opt_parse(&args, NULL, tgfs_opts, tgfs_opt_proc);
-    fuse_opt_add_arg(&args, "-odirect_io");
-    fuse_opt_add_arg(&args, "-ouse_ino");
+    	fuse_opt_parse(&args, NULL, tgfs_opts, tgfs_opt_proc);
+    	fuse_opt_add_arg(&args, "-odirect_io");
+    	fuse_opt_add_arg(&args, "-ouse_ino");
 #ifdef DEBUG
 	fuse_opt_add_arg(&args, "-f");
 	/*fuse_opt_add_arg(&args, "-d");*/
 #endif
+
+	tgfs_tgl_init();	
     
 	int result = fuse_main(args.argc, args.argv, &tgfs_oper, NULL);
 	return result;
