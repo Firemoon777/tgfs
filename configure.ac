@@ -5,12 +5,12 @@ AC_PREREQ([2.69])
 AC_INIT([tgfs], [0.1])
 
 [
-	echo '   [Configuring telegram-cli]   ' | sed -e's/./-/g'
-	echo '   [Configuring telegram-cli]   '
-	echo '   [Configuring telegram-cli]   ' | sed -e's/./-/g'
+	echo '   [Configuring tgl]   ' | sed -e's/./-/g'
+	echo '   [Configuring tgl]   '
+	echo '   [Configuring tgl]   ' | sed -e's/./-/g'
 ]
-cd tg
-./configure --disable-libconfig --disable-liblua --disable-python || exit
+cd tgl
+./configure || exit
 cd ..
 
 [

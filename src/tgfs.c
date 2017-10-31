@@ -15,17 +15,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "tgl/tgl.h"
 
 #define PACKAGE_VERSION "0.1"
-
-#define EQ_STR_LIT( x, lit ) (strncmp( (x), (lit), sizeof(lit)) == 0 )
-#define TGFS_OPT(t, p, v) { t, offsetof(struct tgfs_config, p), v }
-
-#define TGLUF_SELF (1 << 19)
-#define TGLUF_HAS_PHOTO (1 << 1)
-
-#define PATH_MAX_LEVEL 10
-
 
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {

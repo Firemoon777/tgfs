@@ -1,23 +1,19 @@
 CC=@CC@
-CFLAGS=@CFLAGS@ -Wall -Werror -pedantic -c -std=c99 `pkg-config fuse --cflags` -Wno-unused-result
-LIBS=@LIBS@ `pkg-config fuse --libs`
+CFLAGS=@CFLAGS@ -g -O2 -Wall -Werror -pedantic -c -std=c11 `pkg-config fuse --cflags` -Wno-unused-result -I./
+LIBS=@LIBS@ -lfuse  `pkg-config fuse --libs`
 SRC=$(wildcard src/*.c) 
-OBJ=$(SRC:src/%.c=build/%.o) build/jsmn.o
+OBJ=$(SRC:src/%.c=build/%.o)
 
-all: tgfs telegram-cli
+all: tgfs tgl
 
-tgfs: $(OBJ) 
-	$(CC) -o bin/$@ $(OBJ) $(LIBS) 
+tgfs: $(OBJ) tgl
+	$(CC) -o bin/$@ $(OBJ) $(LIBS) tgl/libs/libtgl.a
 
 build/%.o: src/%.c
 	$(CC) $(CFLAGS) -o $@ $<
 	
-build/jsmn.o: lib/jsmn/jsmn.c
-	$(CC) $(CFLAGS) -o $@ $<
-	
-telegram-cli:
-	make -C tg
-	cp tg/bin/telegram-cli bin/telegram-tgfs
+tgl:
+	make -C tgl
 	
 distclean: clean
 	make -C tg clean
