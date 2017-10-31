@@ -157,6 +157,16 @@ void tgfs_tgl_init() {
 
 	int init = tgl_init(TLS);
 	assert(init >= 0);
+
+    	bl_do_dc_option (TLS, 0, 1, "", 0, TG_SERVER_1, strlen (TG_SERVER_1), 443);
+    	bl_do_dc_option (TLS, 0, 2, "", 0, TG_SERVER_2, strlen (TG_SERVER_2), 443);
+    	bl_do_dc_option (TLS, 0, 3, "", 0, TG_SERVER_3, strlen (TG_SERVER_3), 443);
+    	bl_do_dc_option (TLS, 0, 4, "", 0, TG_SERVER_4, strlen (TG_SERVER_4), 443);
+    	bl_do_dc_option (TLS, 0, 5, "", 0, TG_SERVER_5, strlen (TG_SERVER_5), 443);
+    	bl_do_set_working_dc (TLS, TG_SERVER_DEFAULT);
+
+
+  	tgl_login (TLS);
 }
 
 int main(int argc, char *argv[]) {
