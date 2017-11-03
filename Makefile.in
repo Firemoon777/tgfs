@@ -1,6 +1,6 @@
 CC=@CC@
 CFLAGS=@CFLAGS@ -g -O2 -Wall -Werror -c -std=c11 `pkg-config fuse --cflags` -Wno-unused-result -I./ -I./tgl
-LIBS=@LIBS@ -lfuse  `pkg-config fuse --libs` -lcrypto -lz -levent
+LIBS=@LIBS@ 
 SRC=$(wildcard src/*.c) 
 OBJ=$(SRC:src/%.c=build/%.o)
 

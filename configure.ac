@@ -25,6 +25,10 @@ AC_PROG_MAKE_SET
 
 # Checks for libraries.
 AC_SEARCH_LIBS([fuse_main], [fuse])
+AC_SEARCH_LIBS([event_base_loop], [event])
+AC_SEARCH_LIBS([inflateInit2_], [z])
+AC_SEARCH_LIBS([SHA256], [crypto])
+AC_SEARCH_LIBS([pthread_create], [pthread])
 
 # Checks for header files.
 AC_CHECK_HEADERS([fcntl.h malloc.h stddef.h stdint.h stdlib.h string.h sys/socket.h unistd.h])
