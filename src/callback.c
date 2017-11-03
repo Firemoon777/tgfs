@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <assert.h>
+#include <malloc.h>
 
 #include "tgl/tgl.h"
 
@@ -14,11 +16,31 @@ void on_started (struct tgl_state *TLS) {
 	printf("On started\n");
 }
 
+void do_get_values (struct tgl_state *TLS, enum tgl_value_type type, const char *prompt, int num_values,
+		void (*callback)(struct tgl_state *TLS, const char *string[], void *arg), void *arg) {
+	switch(type) {
+		case tgl_phone_number:
+			printf("phone number: ");
+			char *result[10];
+			result[0] = malloc(50*sizeof(char));
+			scanf("%s", result[0]);
+			callback(TLS, (void*)result, arg); 
+			break;
+		case tgl_code:
+			printf("code: ");
+			scanf("%s", result[0]);
+			callback(TLS, (void*)result, arg);
+			break;
+		default:
+			assert(0);
+	}
+}
+
 struct tgl_update_callback upd_cb = {
   .new_msg = 0,
   .marked_read = 0,
   .logprintf = 0,
-  .get_values = 0,
+  .get_values = do_get_values,
   .logged_in = on_login,
   .started = on_started,
   .type_notification = 0,

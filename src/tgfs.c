@@ -29,6 +29,7 @@
 
 #define TGFS_APP_HASH "36722c72256a24c1225de00eb6a1ca74"
 #define TGFS_APP_ID 2899
+
 #define PACKAGE_VERSION "0.2"
 
 struct tgl_state *TLS;
@@ -188,7 +189,7 @@ void* tgfs_tgl_init(void* arg) {
 	while (1) {
     		event_base_loop (TLS->ev_base, EVLOOP_ONCE);
 	}
-
+	printf("tgl thread stopped\n");
 	return NULL;
 }
 
