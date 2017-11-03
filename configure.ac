@@ -10,7 +10,7 @@ AC_INIT([tgfs], [0.1])
 	echo '   [Configuring tgl]   ' | sed -e's/./-/g'
 ]
 cd tgl
-./configure || exit
+./configure --enable-libevent || exit
 cd ..
 
 [

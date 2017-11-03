@@ -4,26 +4,25 @@ LIBS=@LIBS@ -lfuse  `pkg-config fuse --libs` -lcrypto -lz -levent
 SRC=$(wildcard src/*.c) 
 OBJ=$(SRC:src/%.c=build/%.o)
 
-all: tgfs tgl
+all: tgfs | tgl
 
-tgfs: $(OBJ) tgl
+tgfs: $(OBJ) | create-dir
 	$(CC) -o bin/$@ $(OBJ) $(LIBS) tgl/libs/libtgl.a
 
-build/%.o: src/%.c
+build/%.o: src/%.c | tgl
 	$(CC) $(CFLAGS) -o $@ $<
 	
-tgl:
+tgl: FORCE 
 	make -C tgl
+FORCE:
 	
 distclean: clean
-	make -C tg clean
-	rm bin/telegram-tgfs
+	make -C tgl clean
 	
 clean:
-	rm build/* bin/tgfs
+	rm -rf build bin
 
-install: all
-	mv bin/* /usr/bin/
+create-dir:
+	mkdir -p build
+	mkdir -p bin
 
-uninstall: 
-	rm /usr/bin/telegram-tgfs /usr/bin/tgfs
