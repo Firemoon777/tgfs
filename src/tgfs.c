@@ -17,10 +17,14 @@
 #include <assert.h>
 
 #include <tgl/tgl.h>
+#include <tgl/mtproto-key.h>
 #include <tgl/tgl-binlog.h>
 #include <tgl/tgl-net.h>
 #include <tgl/tgl-timers.h>
 #include <tgl/tgl-queries.h>
+
+#  include <event2/event.h>
+#  include <event2/bufferevent.h>
 
 
 #define TGFS_APP_HASH "36722c72256a24c1225de00eb6a1ca74"
@@ -141,15 +145,23 @@ static int tgfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
 }
 
 extern struct tgl_update_callback upd_cb;
+void dlist_cb (struct tgl_state *TLSR, void *callback_extra, int success, int size, tgl_peer_id_t peers[], tgl_message_id_t *last_msg_id[], int unread_count[])  {
+	printf("tgl callback\n");
+}
 
-void tgfs_tgl_init() {
+
+void* tgfs_tgl_init(void* arg) {
+	(void)arg;
 	TLS = tgl_state_alloc();
 	tgl_set_rsa_key(TLS, "tg-server.pub");
 	tgl_set_download_directory(TLS, "~/.tgfs");
 	tgl_set_callback(TLS, &upd_cb);
 
+	struct event_base *ev = event_base_new ();
+	tgl_set_ev_base (TLS, ev);
 	tgl_set_net_methods (TLS, &tgl_conn_methods);
 	tgl_set_timer_methods (TLS, &tgl_libevent_timers);
+	assert (TLS->timer_methods);
 
 
 	tgl_register_app_id (TLS, TGFS_APP_ID, TGFS_APP_HASH); 
@@ -158,6 +170,7 @@ void tgfs_tgl_init() {
 	int init = tgl_init(TLS);
 	assert(init >= 0);
 
+	// Simulate empty auth file
     	bl_do_dc_option (TLS, 0, 1, "", 0, TG_SERVER_1, strlen (TG_SERVER_1), 443);
     	bl_do_dc_option (TLS, 0, 2, "", 0, TG_SERVER_2, strlen (TG_SERVER_2), 443);
     	bl_do_dc_option (TLS, 0, 3, "", 0, TG_SERVER_3, strlen (TG_SERVER_3), 443);
@@ -165,9 +178,21 @@ void tgfs_tgl_init() {
     	bl_do_dc_option (TLS, 0, 5, "", 0, TG_SERVER_5, strlen (TG_SERVER_5), 443);
     	bl_do_set_working_dc (TLS, TG_SERVER_DEFAULT);
 
+	tgl_set_rsa_key_direct (TLS, tglmp_get_default_e (), tglmp_get_default_key_len (), tglmp_get_default_key ());
 
   	tgl_login (TLS);
+
+	//tgl_do_get_dialog_list(TLS, 10, 0, dlist_cb, 0);
+	printf("Success\n");
+
+	while (1) {
+    		event_base_loop (TLS->ev_base, EVLOOP_ONCE);
+	}
+
+	return NULL;
 }
+
+pthread_t t;
 
 int main(int argc, char *argv[]) {
 	
@@ -180,7 +205,7 @@ int main(int argc, char *argv[]) {
 	/*fuse_opt_add_arg(&args, "-d");*/
 #endif
 
-	tgfs_tgl_init();	
+	pthread_create(&t, NULL, tgfs_tgl_init, NULL);	
     
 	int result = fuse_main(args.argc, args.argv, &tgfs_oper, NULL);
 	return result;
