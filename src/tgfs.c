@@ -146,11 +146,8 @@ static int tgfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
 }
 
 extern struct tgl_update_callback upd_cb;
-void dlist_cb (struct tgl_state *TLSR, void *callback_extra, int success, int size, tgl_peer_id_t peers[], tgl_message_id_t *last_msg_id[], int unread_count[])  {
-	printf("tgl callback\n");
-}
 
-
+void read_auth_file();
 void* tgfs_tgl_init(void* arg) {
 	(void)arg;
 	TLS = tgl_state_alloc();
@@ -181,9 +178,10 @@ void* tgfs_tgl_init(void* arg) {
 
 	tgl_set_rsa_key_direct (TLS, tglmp_get_default_e (), tglmp_get_default_key_len (), tglmp_get_default_key ());
 
+	read_auth_file();
+
   	tgl_login (TLS);
 
-	//tgl_do_get_dialog_list(TLS, 10, 0, dlist_cb, 0);
 	printf("Success\n");
 
 	while (1) {
@@ -207,7 +205,7 @@ int main(int argc, char *argv[]) {
 #endif
 
 	pthread_create(&t, NULL, tgfs_tgl_init, NULL);	
-    
+
 	int result = fuse_main(args.argc, args.argv, &tgfs_oper, NULL);
 	return result;
 }
