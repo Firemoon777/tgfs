@@ -9,10 +9,11 @@
 
 #include "auth.h"
 
+extern struct tgl_state *TLS;
+extern int ready;
+
 void on_login (struct tgl_state *TLS) {
-	printf("on_login start\n");
 	write_auth_file();
-	printf("on login end\n");
 }
 
 void on_failed_login (struct tgl_state *TLS) {
@@ -24,9 +25,14 @@ void dlist_cb (struct tgl_state *TLSR, void *callback_extra, int success, int si
 		printf("peer[%i].id = %i\n", i, peers[i].peer_id);
 	}
 }
+
+void print_user(struct tgl_state *TLS, void *callback_extra, int success, struct tgl_user *U) {
+	printf("Welcome, %s\n", U->username);
+	ready = 1;
+}
+
 void on_started (struct tgl_state *TLS) {
-	printf("On started\n");
-	tgl_do_get_dialog_list(TLS, 10, 0, dlist_cb, 0);
+	tgl_do_get_user_info(TLS, TLS->our_id, 0, print_user, 0);
 }
 
 void do_get_values (struct tgl_state *TLS, enum tgl_value_type type, const char *prompt, int num_values,

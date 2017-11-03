@@ -33,6 +33,7 @@
 #define PACKAGE_VERSION "0.2"
 
 struct tgl_state *TLS;
+int ready = 0;
 
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
@@ -182,12 +183,10 @@ void* tgfs_tgl_init(void* arg) {
 
   	tgl_login (TLS);
 
-	printf("Success\n");
-
 	while (1) {
     		event_base_loop (TLS->ev_base, EVLOOP_ONCE);
+    		usleep(1000);
 	}
-	printf("tgl thread stopped\n");
 	return NULL;
 }
 
@@ -195,17 +194,20 @@ pthread_t t;
 
 int main(int argc, char *argv[]) {
 	
+	printf("Launching tgfs...\n");
+	
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-    	fuse_opt_parse(&args, NULL, tgfs_opts, tgfs_opt_proc);
-    	fuse_opt_add_arg(&args, "-odirect_io");
-    	fuse_opt_add_arg(&args, "-ouse_ino");
-#ifdef DEBUG
-	fuse_opt_add_arg(&args, "-f");
-	/*fuse_opt_add_arg(&args, "-d");*/
-#endif
+	fuse_opt_parse(&args, NULL, tgfs_opts, tgfs_opt_proc);
+	fuse_opt_add_arg(&args, "-odirect_io");
+	fuse_opt_add_arg(&args, "-ouse_ino");
 
 	pthread_create(&t, NULL, tgfs_tgl_init, NULL);	
 
+	// Block until tg login
+	while(ready == 0) {
+			usleep(1000);
+	}
+	printf("Ready!\n");
 	int result = fuse_main(args.argc, args.argv, &tgfs_oper, NULL);
 	return result;
 }
