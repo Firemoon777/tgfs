@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <malloc.h>
+#include <pthread.h>
 
 #include <tgl/tgl.h>
 #include <tgl/tgl-binlog.h>
@@ -12,6 +13,8 @@
 extern struct tgl_state *TLS;
 extern int ready;
 
+extern tgl_peer_id_t *peers;
+
 void on_login (struct tgl_state *TLS) {
 	write_auth_file();
 }
@@ -20,19 +23,19 @@ void on_failed_login (struct tgl_state *TLS) {
 	printf("Login failed\n");
 }
 
-void dlist_cb (struct tgl_state *TLSR, void *callback_extra, int success, int size, tgl_peer_id_t peers[], tgl_message_id_t *last_msg_id[], int unread_count[])  {
-	for(int i = 0; i < size; i++) {
-		printf("peer[%i].id = %i\n", i, peers[i].peer_id);
-	}
-}
-
-void print_user(struct tgl_state *TLS, void *callback_extra, int success, struct tgl_user *U) {
-	printf("Welcome, %s\n", U->username);
+static void parse_dialog_list (struct tgl_state *TLSR, void *callback_extra, int success, int size, tgl_peer_id_t p[], tgl_message_id_t *last_msg_id[], int unread_count[])  {
+	peers = (tgl_peer_id_t*)malloc(size*sizeof(tgl_peer_id_t));
+	memcpy(peers, p, size*sizeof(tgl_peer_id_t));
 	ready = 1;
 }
 
+void test(tgl_peer_t *peer, void *extra) {
+	printf("Peer = %s\n", peer->print_name);
+}
+
 void on_started (struct tgl_state *TLS) {
-	tgl_do_get_user_info(TLS, TLS->our_id, 0, print_user, 0);
+	//users = (struct tgl_user*)malloc(1000*sizeof(struct tgl_user));
+	tgl_do_get_dialog_list(TLS, 1000, 0, parse_dialog_list, 0);
 }
 
 void do_get_values (struct tgl_state *TLS, enum tgl_value_type type, const char *prompt, int num_values,

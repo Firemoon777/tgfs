@@ -34,6 +34,7 @@
 
 struct tgl_state *TLS;
 int ready = 0;
+tgl_peer_id_t *peers;
 
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
