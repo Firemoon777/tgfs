@@ -34,16 +34,43 @@
 
 struct tgl_state *TLS;
 int ready = 0;
+int peers_length;
 tgl_peer_id_t *peers;
 
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
-	return -ENOENT;
+	int res = 0;
+	memset(stbuf, 0, sizeof(struct stat));
+	if (strcmp(path, "/") == 0) {
+		stbuf->st_mode = S_IFDIR | 0700;
+		stbuf->st_nlink = 2 + peers_length;
+		
+	} else {
+		res = -ENOENT;
+	}
+	return res;
 }
 
 static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			 off_t offset, struct fuse_file_info *fi)
 {
+	int i;
+	printf("readdir: %s\n", path);
+	if (strcmp(path, "/") == 0) {
+		filler(buf, ".", NULL, 0);
+		filler(buf, "..", NULL, 0);
+		for(i = 0; i < peers_length; i++) {
+			tgl_peer_t *peer = tgl_peer_get(TLS, peers[i]);
+			printf("peer: %s\n", peer->print_name);
+			if(peer->print_name) {
+				filler(buf, peer->print_name, NULL, 0);
+			} else {
+				// null peer
+			}
+		}
+		return 0;
+	}
+	
 	return -ENOENT;
 }
 

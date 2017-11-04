@@ -14,6 +14,7 @@ extern struct tgl_state *TLS;
 extern int ready;
 
 extern tgl_peer_id_t *peers;
+extern int peers_length;
 
 void on_login (struct tgl_state *TLS) {
 	write_auth_file();
@@ -26,15 +27,11 @@ void on_failed_login (struct tgl_state *TLS) {
 static void parse_dialog_list (struct tgl_state *TLSR, void *callback_extra, int success, int size, tgl_peer_id_t p[], tgl_message_id_t *last_msg_id[], int unread_count[])  {
 	peers = (tgl_peer_id_t*)malloc(size*sizeof(tgl_peer_id_t));
 	memcpy(peers, p, size*sizeof(tgl_peer_id_t));
+	peers_length = size;
 	ready = 1;
 }
 
-void test(tgl_peer_t *peer, void *extra) {
-	printf("Peer = %s\n", peer->print_name);
-}
-
 void on_started (struct tgl_state *TLS) {
-	//users = (struct tgl_user*)malloc(1000*sizeof(struct tgl_user));
 	tgl_do_get_dialog_list(TLS, 1000, 0, parse_dialog_list, 0);
 }
 
