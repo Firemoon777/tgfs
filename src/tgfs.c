@@ -60,6 +60,10 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 	if(path[pos] == '\0') {
 		stbuf->st_mode = S_IFDIR | 0700;
 		stbuf->st_nlink = 2;
+		struct tgl_message *message = peer->last;
+		if(message) {
+			stbuf->st_mtime = message->date;
+		}
 		return 0;
 	}
 	return -ENOENT;
