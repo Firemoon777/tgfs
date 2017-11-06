@@ -39,6 +39,10 @@ tgl_peer_id_t *peers;
 
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
+	if(strcmp(path, "/test") == 0) {
+		stbuf->st_mode = S_IFREG | 0600;
+		return 0;
+	}
 	int pos = 1;
 	memset(stbuf, 0, sizeof(struct stat));
 	if (strcmp(path, "/") == 0) {
@@ -77,6 +81,7 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	if (strcmp(path, "/") == 0) {
 		filler(buf, ".", NULL, 0);
 		filler(buf, "..", NULL, 0);
+		filler(buf, "test", NULL, 0);
 		for(i = 0; i < peers_length; i++) {
 			tgl_peer_t *peer = tgl_peer_get(TLS, peers[i]);
 			if(peer->print_name) {
@@ -93,12 +98,43 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int tgfs_open(const char *path, struct fuse_file_info *fi)
 {
+	if(strcmp(path, "/test") == 0) {
+		return 0;
+	}
 	return -ENOENT;
 }
+
+static void read_callback(struct tgl_state *TLS, void *callback_extra, int success) {
+	struct tgl_read_data *data = (struct tgl_read_data*)callback_extra;
+	data->success = success;
+	printf("success: %i\n", success);
+	if(success) {
+		printf("len = %i\n", data->len);
+	}
+}	
 
 static int tgfs_read(const char *path, char *buf, size_t size, off_t offset,
 		      struct fuse_file_info *fi)
 {
+	if(strcmp(path, "/test") == 0) {
+		struct tgl_read_data data;
+		data.success = -1;
+		data.offset = offset;
+		tgl_peer_t *selfchat = tgl_peer_get(TLS, TLS->our_id);
+		assert(selfchat);
+		assert(selfchat->last);
+		tgl_do_read_audio(TLS, selfchat->last->media.document, read_callback, &data);
+		sleep(1);
+		while(data.success == -1) {
+		}
+		if(data.success == 0) {
+			return -EIO;
+		}
+		printf("retured to read, len = %i, size = %li offset = %li\n", data.len, size, offset);
+		memcpy(buf, data.bytes, size);
+		return size;
+		
+	}
 	return -ENOENT;
 }
 
