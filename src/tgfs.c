@@ -117,21 +117,25 @@ static int tgfs_read(const char *path, char *buf, size_t size, off_t offset,
 		      struct fuse_file_info *fi)
 {
 	if(strcmp(path, "/test") == 0) {
-		struct tgl_read_data data;
-		data.success = -1;
-		data.offset = offset;
+		struct tgl_read_data *data = (struct tgl_read_data*)malloc(sizeof(struct tgl_read_data));
+		data->success = -1;
+		data->offset = offset;
+		data->len = size > 1 << 14 ? size : 1 << 14;
 		tgl_peer_t *selfchat = tgl_peer_get(TLS, TLS->our_id);
 		assert(selfchat);
 		assert(selfchat->last);
-		tgl_do_read_audio(TLS, selfchat->last->media.document, read_callback, &data);
-		sleep(1);
-		while(data.success == -1) {
+		tgl_do_read_audio(TLS, selfchat->last->media.document, read_callback, data);
+		while(data->success == -1) {
+			//sleep(0.1);
 		}
-		if(data.success == 0) {
+		if(data->success == 0) {
 			return -EIO;
 		}
-		printf("retured to read, len = %i, size = %li offset = %li\n", data.len, size, offset);
-		memcpy(buf, data.bytes, size);
+		data->len = data->len > size ? size : data->len;
+		printf("retured to read, len = %i, size = %li offset = %li\n", data->len, size, offset);
+		memcpy(buf, data->bytes, data->len);
+		size = data->len;
+		free(data);
 		return size;
 		
 	}
