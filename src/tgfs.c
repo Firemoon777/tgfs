@@ -25,8 +25,8 @@ int peers_length;
 tgl_peer_id_t *peers;
 
 enum {
-	TGFS_MUSIC,
-	TGFS_UNKNOWN
+	TGFS_MUSIC = 1,
+	TGFS_UNKNOWN = 0
 };
 
 static int parse_path(const char *path, tgl_peer_t **peer, int *type, char **filename) {
@@ -45,7 +45,7 @@ static int parse_path(const char *path, tgl_peer_t **peer, int *type, char **fil
 	char *peer_name = (char*)malloc(s*sizeof(char));
 	strncpy(peer_name, path + 1, s);
 	peer_name[s-1] = 0;
-	//printf("first: %s\n", peer_name);
+	printf("first: %s\n", peer_name);
 	tgl_peer_t *founded = tgl_peer_get_by_name(TLS, peer_name);
 	*peer = founded;
 	free(peer_name);
@@ -62,15 +62,19 @@ static int parse_path(const char *path, tgl_peer_t **peer, int *type, char **fil
 	char *dir = (char*)malloc(s*sizeof(char)); 
 	strncpy(dir, path + 1, s);
 	dir[s-1] = 0;
-	//printf("second: %s\n", dir);
+	printf("second: %s\n", dir);
+	if(strncmp(dir, "Music", 6) == 0) {
+		*type = TGFS_MUSIC;
+	}
 	free(dir);
 	
-	if(path[s] == 0) {
+
+	if(path[s] == 0 || *type == TGFS_UNKNOWN) {
 		return 2;
 	}
 
 	*filename = (char*)path + s + 1;
-	//printf("third: %s\n", path + s + 1);
+	printf("third: %s\n", path + s + 1);
 
 	return 3;
 }
@@ -80,13 +84,19 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 	tgl_peer_t *peer;
 	int type;
 	char *filename = (char*)path;
-	parse_path(path, &peer, &type, &filename);
+	int result = parse_path(path, &peer, &type, &filename);
 
 	if(peer == NULL) {
+		if(result != 0) {
+			return -ENOENT;
+		}
 		stbuf->st_mode = S_IFDIR | 0700;
-		stbuf->st_nlink = 2 + peers_length;
+		stbuf->st_nlink = 2;
 		return 0;		
 	} else if(type == TGFS_UNKNOWN) {
+		if(result != 1) {
+			return -ENOENT;
+		}
 		stbuf->st_mode = S_IFDIR | 0700;
 		stbuf->st_nlink = 2;
 		struct tgl_message *message = peer->last;
@@ -95,15 +105,12 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 		}
 		return 0;
 	} else if(filename == NULL) {
+		if(result != 2) {
+			return -ENOENT;
+		}
 		stbuf->st_mode = S_IFDIR | 0700;
 		stbuf->st_nlink = 2 + peers_length;
 		return 0;		
-
-	}
-
-	if(strcmp(path, "/test") == 0) {
-		stbuf->st_mode = S_IFREG | 0600;
-		return 0;
 	}
 	return -ENOENT;
 
@@ -115,17 +122,26 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	tgl_peer_t *peer;
 	int type;
 	char *filename = (char*)path;
-	parse_path(path, &peer, &type, &filename);
+	int result = parse_path(path, &peer, &type, &filename);
+	printf("path parsed: %s (%i) %p %i\n", path, result, peer, type);
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
 	if (peer == NULL) {
-		filler(buf, "test", NULL, 0);
+		if(result != 0) {
+			return -ENOENT;
+		}
 		tg_storage_peer_enumerate(buf, filler);
 		return 0;
 	} else if(type == TGFS_UNKNOWN) {
+		if(result != 1) {
+			return -ENOENT;
+		}
 		filler(buf, "Music", NULL, 0);
 		return 0;
 	} else if(filename == NULL) {
+		if(result != 2) {
+			return -ENOENT;
+		}
 		return 0;	
 	}
 	
