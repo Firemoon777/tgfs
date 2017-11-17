@@ -9,6 +9,7 @@
 #include <tgl/tgl-queries.h>
 
 #include "auth.h"
+#include "tg.h"
 
 extern struct tgl_state *TLS;
 extern int ready;
@@ -17,6 +18,7 @@ extern tgl_peer_id_t *peers;
 extern int peers_length;
 
 void on_login (struct tgl_state *TLS) {
+	printf("Login!\n");
 	write_auth_file();
 }
 
@@ -25,13 +27,15 @@ void on_failed_login (struct tgl_state *TLS) {
 }
 
 static void parse_dialog_list (struct tgl_state *TLSR, void *callback_extra, int success, int size, tgl_peer_id_t p[], tgl_message_id_t *last_msg_id[], int unread_count[])  {
-	peers = (tgl_peer_id_t*)malloc(size*sizeof(tgl_peer_id_t));
-	memcpy(peers, p, size*sizeof(tgl_peer_id_t));
-	peers_length = size;
+	for(int i = 0; i < size; i++) {
+		tg_storage_peer_add(p[i]);
+	}
+	peers_length = 0;
 	ready = 1;
 }
 
 void on_started (struct tgl_state *TLS) {
+	printf("Started!\n");
 	tgl_do_get_dialog_list(TLS, 1000, 0, parse_dialog_list, 0);
 }
 

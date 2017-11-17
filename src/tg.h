@@ -1,6 +1,7 @@
 #ifndef _TG_H_
 #define _TG_H_
 
+#include <fuse.h>
 #include <tgl/tgl.h>
 #include <tgl/mtproto-key.h>
 #include <tgl/tgl-binlog.h>
@@ -13,5 +14,12 @@
 #define PACKAGE_VERSION "0.2"
 
 extern struct tgl_state *TLS;
+
+void tg_tgl_init();
+void tg_tgl_destruct();
+
+void tg_storage_peer_add(tgl_peer_id_t peer);
+void tg_storage_peer_enumerate(void *buf, fuse_fill_dir_t filler);
+
 
 #endif

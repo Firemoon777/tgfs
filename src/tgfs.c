@@ -64,19 +64,11 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			 off_t offset, struct fuse_file_info *fi)
 {
-	int i;
 	if (strcmp(path, "/") == 0) {
 		filler(buf, ".", NULL, 0);
 		filler(buf, "..", NULL, 0);
 		filler(buf, "test", NULL, 0);
-		for(i = 0; i < peers_length; i++) {
-			tgl_peer_t *peer = tgl_peer_get(TLS, peers[i]);
-			if(peer->print_name) {
-				filler(buf, peer->print_name, NULL, 0);
-			} else {
-				// null peer
-			}
-		}
+		tg_storage_peer_enumerate(buf, filler);
 		return 0;
 	}
 	
@@ -228,13 +220,16 @@ int main(int argc, char *argv[]) {
 	fuse_opt_parse(&args, NULL, tgfs_opts, tgfs_opt_proc);
 	fuse_opt_add_arg(&args, "-odirect_io");
 	fuse_opt_add_arg(&args, "-ouse_ino");
+	fuse_opt_add_arg(&args, "-f");
 
+	tg_tgl_init();
 
 	// Block until tg login
 	while(ready == 0) {
 			usleep(1000);
 	}
 	printf("Ready!\n");
-	int result = 0;//fuse_main(args.argc, args.argv, &tgfs_oper, NULL);
+	int result = fuse_main(args.argc, args.argv, &tgfs_oper, NULL);
+	tg_tgl_destruct();
 	return result;
 }
