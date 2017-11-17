@@ -32,7 +32,8 @@ static void _tg_storage_init() {
 		sqlite3_close(tg_storage);
 		exit(1);
 	}
-	char *tables = "create table peers(type int, id int primary key, access_hash bigint);";
+	char *tables = "create table peers(type int, id int primary key, access_hash bigint);" + 
+		"create table messages(peer_type int, peer_id int, id bigint primary key, access_hash bigint);";
 	rc = sqlite3_exec(tg_storage, tables, 0, 0, &err_msg);
 	if(rc != SQLITE_OK) {
 		fprintf(stderr, "Failed to create tables\nSQL Error: %s\n", err_msg);
