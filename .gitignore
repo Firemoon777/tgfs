@@ -38,3 +38,4 @@ autom4te.cache/
 Makefile
 *config.log
 *config.status
+*swp
