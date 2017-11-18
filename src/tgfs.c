@@ -81,7 +81,11 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 	char *filename = (char*)path;
 	int result = parse_path(path, &peer, &type, &filename);
 
+	stbuf->st_uid = getuid();
+	stbuf->st_gid = getgid();
+
 	if(peer == NULL) {
+		// Root
 		if(result != 0) {
 			return -ENOENT;
 		}
@@ -89,6 +93,7 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 		stbuf->st_nlink = 2;
 		return 0;		
 	} else if(type == TGFS_UNKNOWN) {
+		// Peer dir
 		if(result != 1) {
 			return -ENOENT;
 		}
@@ -100,12 +105,19 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 		}
 		return 0;
 	} else if(filename == NULL) {
+		// Documents dir
 		if(result != 2) {
 			return -ENOENT;
 		}
 		stbuf->st_mode = S_IFDIR | 0700;
 		stbuf->st_nlink = 2 + peers_length;
 		return 0;		
+	} else {
+		// File in doc dir
+		if(result != 3) {
+			return -ENOENT;
+		}
+		return tg_storage_msg_stat(filename, stbuf, type);
 	}
 	return -ENOENT;
 

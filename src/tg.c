@@ -99,7 +99,6 @@ void tg_storage_msg_add(struct tgl_message m) {
 	switch(m.media.type) {
 		case tgl_message_media_document:
 			sqlite3_bind_int64(res, 5, TGFS_MUSIC);
-			printf("%s (size = %li)\n", m.media.document->caption, strlen(m.media.document->caption));
 			sqlite3_bind_text(res, 7, m.media.document->caption, strlen(m.media.document->caption), SQLITE_STATIC);
 			sqlite3_bind_int(res, 8, m.media.document->size);
 			break;
@@ -111,6 +110,30 @@ void tg_storage_msg_add(struct tgl_message m) {
 	}
 
 	sqlite3_finalize(res);
+}
+
+int tg_storage_msg_stat(const char* path, struct stat *stbuf, int type) {
+	char* select = "select size, d from messages where caption = ? and media = ?;";
+	sqlite3_stmt* res;
+	int rc = sqlite3_prepare_v2(tg_storage, select, -1, &res, NULL);
+	if(rc != SQLITE_OK) {
+		fprintf(stderr, "Failed to stat");
+		return -EIO;
+	}
+	sqlite3_bind_text(res, 1, path, strlen(path), SQLITE_STATIC);
+	sqlite3_bind_int64(res, 2, type);
+	int result = -ENOENT;
+	if(sqlite3_step(res) == SQLITE_ROW) {
+		stbuf->st_mode = S_IFREG | 0600;
+		stbuf->st_nlink = 1;
+		stbuf->st_size = sqlite3_column_int(res, 0);
+		stbuf->st_mtime = sqlite3_column_int(res, 1);
+		stbuf->st_atime = stbuf->st_mtime;
+		stbuf->st_ctime = stbuf->st_mtime;
+		result = 0;
+	}
+	sqlite3_finalize(res);
+	return result;
 }
 
 void tg_storage_msg_enumerate_name(tgl_peer_id_t peer, int type, void *buf, fuse_fill_dir_t filler) {
@@ -134,8 +157,7 @@ void tg_storage_msg_enumerate_name(tgl_peer_id_t peer, int type, void *buf, fuse
 	sqlite3_finalize(res);
 }
 
-void _callback(struct tgl_state *TLS, void *callback_extra, int success, int size, struct tgl_message *list[]) {
-	printf("success = %i, size = %i\n", success, size);
+static void tg_download_attachments_callback(struct tgl_state *TLS, void *callback_extra, int success, int size, struct tgl_message *list[]) {
 	for(int i = 0; i < size; i++) {
 		struct tgl_message* msg = list[i];
 		tg_storage_msg_add(*msg);
@@ -156,7 +178,6 @@ void tg_donwload_attachments(tgl_peer_id_t peer_id, int type) {
 
 	pthread_mutex_t* m = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
 	pthread_mutex_init(m, NULL);
-	printf("start\n");
 	pthread_mutex_lock(m);
 	tgl_do_msg_search(
 			TLS, 
@@ -168,11 +189,10 @@ void tg_donwload_attachments(tgl_peer_id_t peer_id, int type) {
 			0, /* offset */
 			NULL, /* query */
 			0, /* query len*/
-			_callback,
+			tg_download_attachments_callback,
 			m /* callback extra */
 	);	
 	pthread_mutex_lock(m);
-	printf("unlocked\n");
 	pthread_mutex_destroy(m);
 	free(m);
 }

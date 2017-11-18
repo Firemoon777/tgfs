@@ -29,6 +29,7 @@ void tg_storage_peer_enumerate(void *buf, fuse_fill_dir_t filler);
 
 void tg_storage_msg_add(struct tgl_message m);
 void tg_storage_msg_enumerate_name(tgl_peer_id_t peer, int type, void *buf, fuse_fill_dir_t filler);
+int tg_storage_msg_stat(const char* path, struct stat *stbuf, int type);
 
 void tg_donwload_attachments(tgl_peer_id_t peer_id, int type);
 
