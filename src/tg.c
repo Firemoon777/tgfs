@@ -72,10 +72,10 @@ void tg_storage_peer_enumerate(void *buf, fuse_fill_dir_t filler) {
 	int step = sqlite3_step(res);
 	while(step == SQLITE_ROW) {
 		tgl_peer_id_t id = convert_id(res);
-		step = sqlite3_step(res);
 		tgl_peer_t *peer = tgl_peer_get(TLS, id);
 		if(peer->print_name) 
 			filler(buf, peer->print_name, NULL, 0); 
+		step = sqlite3_step(res);
 	}
 	sqlite3_finalize(res);
 }
@@ -95,10 +95,10 @@ void tg_storage_msg_add(struct tgl_message m) {
 	sqlite3_bind_int64(res, 2, m.permanent_id.peer_id);
 	sqlite3_bind_int64(res, 3, m.permanent_id.id);
 	sqlite3_bind_int64(res, 4, m.permanent_id.access_hash);
-	sqlite3_bind_int64(res, 5, m.media.type);
 	sqlite3_bind_int64(res, 6, m.date);
 	switch(m.media.type) {
 		case tgl_message_media_document:
+			sqlite3_bind_int64(res, 5, TGFS_MUSIC);
 			printf("%s (size = %li)\n", m.media.document->caption, strlen(m.media.document->caption));
 			sqlite3_bind_text(res, 7, m.media.document->caption, strlen(m.media.document->caption), SQLITE_STATIC);
 			sqlite3_bind_int(res, 8, m.media.document->size);
@@ -113,20 +113,55 @@ void tg_storage_msg_add(struct tgl_message m) {
 	sqlite3_finalize(res);
 }
 
+void tg_storage_msg_enumerate_name(tgl_peer_id_t peer, int type, void *buf, fuse_fill_dir_t filler) {
+	char* select = "select caption from messages where peer_id = ? and peer_type = ? and media = ?;";
+	char* err_msg = NULL;
+	sqlite3_stmt* res;
+	int rc = sqlite3_prepare_v2(tg_storage, select, -1, &res, NULL);
+	if(rc != SQLITE_OK) {
+		fprintf(stderr, "Failed to enumerate peers: %s\n", err_msg);
+		return;
+	}
+	sqlite3_bind_int64(res, 1, peer.peer_id);
+	sqlite3_bind_int64(res, 2, peer.peer_type);
+	sqlite3_bind_int(res, 3, type);
+	int step = sqlite3_step(res);
+	while(step == SQLITE_ROW) {
+		const char* name = (char*)sqlite3_column_text(res, 0);
+		filler(buf, name, NULL, 0); 
+		step = sqlite3_step(res);
+	}
+	sqlite3_finalize(res);
+}
+
 void _callback(struct tgl_state *TLS, void *callback_extra, int success, int size, struct tgl_message *list[]) {
 	printf("success = %i, size = %i\n", success, size);
 	for(int i = 0; i < size; i++) {
 		struct tgl_message* msg = list[i];
-		printf("attach size = %s\n", msg->media.document->caption);
 		tg_storage_msg_add(*msg);
 	}
+	pthread_mutex_unlock(callback_extra);
 }
 
-void tg_donwload_attachments(tgl_peer_id_t peer_id) {
+void tg_donwload_attachments(tgl_peer_id_t peer_id, int type) {
+	int type_code;
+	switch(type) {
+		case TGFS_MUSIC:
+			type_code = CODE_input_messages_filter_audio_documents;
+			break;
+		default:
+			type_code = -1;
+	}
+
+
+	pthread_mutex_t* m = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(m, NULL);
+	printf("start\n");
+	pthread_mutex_lock(m);
 	tgl_do_msg_search(
 			TLS, 
 			peer_id, 
-			CODE_input_messages_filter_audio_documents, 
+			type_code, 
 			0, /* from */ 
 			0, /* to */
 			100, /* limit */
@@ -134,8 +169,12 @@ void tg_donwload_attachments(tgl_peer_id_t peer_id) {
 			NULL, /* query */
 			0, /* query len*/
 			_callback,
-			NULL /* callback extra */
+			m /* callback extra */
 	);	
+	pthread_mutex_lock(m);
+	printf("unlocked\n");
+	pthread_mutex_destroy(m);
+	free(m);
 }
 
 static void* _tg_tgl_init(void* arg) {

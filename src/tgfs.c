@@ -24,11 +24,6 @@ int ready = 0;
 int peers_length;
 tgl_peer_id_t *peers;
 
-enum {
-	TGFS_MUSIC = 1,
-	TGFS_UNKNOWN = 0
-};
-
 static int parse_path(const char *path, tgl_peer_t **peer, int *type, char **filename) {
 	//printf("path: %s\n", path);
 	*peer = NULL;
@@ -141,6 +136,8 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		if(result != 2) {
 			return -ENOENT;
 		}
+		tg_donwload_attachments(peer->id, type);	
+		tg_storage_msg_enumerate_name(peer->id, type, buf, filler);	
 		return 0;	
 	}
 	
@@ -301,7 +298,6 @@ int main(int argc, char *argv[]) {
 			usleep(1000);
 	}
 	printf("Ready!\n");
-	tg_donwload_attachments(TLS->our_id);
 	int result = fuse_main(args.argc, args.argv, &tgfs_oper, NULL);
 	tg_tgl_destruct();
 	return result;
