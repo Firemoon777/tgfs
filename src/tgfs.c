@@ -76,6 +76,11 @@ static int parse_path(const char *path, tgl_peer_t **peer, int *type, char **fil
 
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
+	if(strncmp(path, "/test", 5) == 0) {
+		stbuf->st_mode = S_IFREG | 0600;
+		stbuf->st_nlink = 1;
+		return 0;
+	}
 	tgl_peer_t *peer;
 	int type;
 	char *filename = (char*)path;
@@ -158,7 +163,9 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int tgfs_open(const char *path, struct fuse_file_info *fi)
 {
-	if(strcmp(path, "/test") == 0) {
+	if(strncmp(path, "/test", 5) == 0) {
+		fi->fh = rand();
+		printf("open fh = %li\n", fi->fh);
 		return 0;
 	}
 	return -ENOENT;
@@ -176,7 +183,10 @@ static void read_callback(struct tgl_state *TLS, void *callback_extra, int succe
 static int tgfs_read(const char *path, char *buf, size_t size, off_t offset,
 		      struct fuse_file_info *fi)
 {
-	if(strcmp(path, "/test") == 0) {
+	if(strncmp(path, "/test", 5) == 0) {
+		sleep(2);
+		return 0;
+
 		struct tgl_read_data *data = (struct tgl_read_data*)malloc(sizeof(struct tgl_read_data));
 		data->success = -1;
 		data->offset = offset;
@@ -216,6 +226,7 @@ static int tgfs_write(const char *path, const char *buf, size_t size, off_t offs
 }
 
 int tgfs_release(const char *path, struct fuse_file_info *fi) {
+	printf("release fh = %li\n", fi->fh);
 	return 0;
 }
 

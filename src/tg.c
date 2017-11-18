@@ -33,7 +33,8 @@ static void _tg_storage_init() {
 		exit(1);
 	}
 	char *tables = "create table peers(type int, id int primary key, access_hash bigint);" 
-		"create table messages(peer_type bigint, peer_id bigint, id bigint primary key, access_hash bigint, media int, d int, caption text, size int);";
+		"create table messages(peer_type bigint, peer_id bigint, id bigint primary key, access_hash bigint, media int, d int, caption text, size int);"
+		"create table filecache(id int unique, f blob);";
 	rc = sqlite3_exec(tg_storage, tables, 0, 0, &err_msg);
 	if(rc != SQLITE_OK) {
 		fprintf(stderr, "Failed to create tables\nSQL Error: %s\n", err_msg);
@@ -241,4 +242,3 @@ static void* _tg_tgl_init(void* arg) {
 	return NULL;
 }
 
-pthread_t t;
