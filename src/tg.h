@@ -3,6 +3,7 @@
 
 #include <fuse.h>
 #include <tgl/tgl.h>
+#include <tgl/mtproto-common.h>
 #include <tgl/mtproto-key.h>
 #include <tgl/tgl-binlog.h>
 #include <tgl/tgl-net.h>
@@ -20,6 +21,7 @@ void tg_tgl_destruct();
 
 void tg_storage_peer_add(tgl_peer_id_t peer);
 void tg_storage_peer_enumerate(void *buf, fuse_fill_dir_t filler);
-
+void tg_storage_msg_add(struct tgl_message m);
+void tg_donwload_attachments(tgl_peer_id_t peer_id);
 
 #endif

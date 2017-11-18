@@ -30,7 +30,7 @@ enum {
 };
 
 static int parse_path(const char *path, tgl_peer_t **peer, int *type, char **filename) {
-	printf("path: %s\n", path);
+	//printf("path: %s\n", path);
 	*peer = NULL;
 	*type = TGFS_UNKNOWN;
 	*filename = NULL; 
@@ -45,7 +45,7 @@ static int parse_path(const char *path, tgl_peer_t **peer, int *type, char **fil
 	char *peer_name = (char*)malloc(s*sizeof(char));
 	strncpy(peer_name, path + 1, s);
 	peer_name[s-1] = 0;
-	printf("first: %s\n", peer_name);
+	//printf("first: %s\n", peer_name);
 	tgl_peer_t *founded = tgl_peer_get_by_name(TLS, peer_name);
 	*peer = founded;
 	free(peer_name);
@@ -62,7 +62,7 @@ static int parse_path(const char *path, tgl_peer_t **peer, int *type, char **fil
 	char *dir = (char*)malloc(s*sizeof(char)); 
 	strncpy(dir, path + 1, s);
 	dir[s-1] = 0;
-	printf("second: %s\n", dir);
+	//printf("second: %s\n", dir);
 	if(strncmp(dir, "Music", 6) == 0) {
 		*type = TGFS_MUSIC;
 	}
@@ -74,7 +74,7 @@ static int parse_path(const char *path, tgl_peer_t **peer, int *type, char **fil
 	}
 
 	*filename = (char*)path + s + 1;
-	printf("third: %s\n", path + s + 1);
+	//printf("third: %s\n", path + s + 1);
 
 	return 3;
 }
@@ -123,7 +123,6 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	int type;
 	char *filename = (char*)path;
 	int result = parse_path(path, &peer, &type, &filename);
-	printf("path parsed: %s (%i) %p %i\n", path, result, peer, type);
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
 	if (peer == NULL) {
@@ -302,6 +301,7 @@ int main(int argc, char *argv[]) {
 			usleep(1000);
 	}
 	printf("Ready!\n");
+	tg_donwload_attachments(TLS->our_id);
 	int result = fuse_main(args.argc, args.argv, &tgfs_oper, NULL);
 	tg_tgl_destruct();
 	return result;

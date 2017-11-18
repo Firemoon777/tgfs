@@ -32,8 +32,8 @@ static void _tg_storage_init() {
 		sqlite3_close(tg_storage);
 		exit(1);
 	}
-	char *tables = "create table peers(type int, id int primary key, access_hash bigint);" + 
-		"create table messages(peer_type int, peer_id int, id bigint primary key, access_hash bigint);";
+	char *tables = "create table peers(type int, id int primary key, access_hash bigint);" 
+		"create table messages(peer_type bigint, peer_id bigint, id bigint primary key, access_hash bigint, media int, d int, caption text, size int);";
 	rc = sqlite3_exec(tg_storage, tables, 0, 0, &err_msg);
 	if(rc != SQLITE_OK) {
 		fprintf(stderr, "Failed to create tables\nSQL Error: %s\n", err_msg);
@@ -78,6 +78,64 @@ void tg_storage_peer_enumerate(void *buf, fuse_fill_dir_t filler) {
 			filler(buf, peer->print_name, NULL, 0); 
 	}
 	sqlite3_finalize(res);
+}
+
+void tg_storage_msg_add(struct tgl_message m) {
+	char* insert;
+	char* err_msg = NULL;
+	sqlite3_stmt* res;
+	insert = "insert into messages(peer_type, peer_id, id, access_hash, media, d, caption, size) "
+			"values(?, ?, ?, ?, ?, ?, ?, ?);";
+	int rc = sqlite3_prepare_v2(tg_storage, insert, -1, &res, 0);
+	if(rc != SQLITE_OK) {
+		fprintf(stderr, "Failed to insert msg: %s\n", err_msg);
+		return;
+	}
+	sqlite3_bind_int64(res, 1, m.permanent_id.peer_type);
+	sqlite3_bind_int64(res, 2, m.permanent_id.peer_id);
+	sqlite3_bind_int64(res, 3, m.permanent_id.id);
+	sqlite3_bind_int64(res, 4, m.permanent_id.access_hash);
+	sqlite3_bind_int64(res, 5, m.media.type);
+	sqlite3_bind_int64(res, 6, m.date);
+	switch(m.media.type) {
+		case tgl_message_media_document:
+			printf("%s (size = %li)\n", m.media.document->caption, strlen(m.media.document->caption));
+			sqlite3_bind_text(res, 7, m.media.document->caption, strlen(m.media.document->caption), SQLITE_STATIC);
+			sqlite3_bind_int(res, 8, m.media.document->size);
+			break;
+		default:
+			sqlite3_bind_text(res, 7, m.message, sizeof(m.message), SQLITE_STATIC);
+	}
+	if(sqlite3_step(res) != SQLITE_DONE) {
+		fprintf(stderr,  "Failed to insert message\n");
+	}
+
+	sqlite3_finalize(res);
+}
+
+void _callback(struct tgl_state *TLS, void *callback_extra, int success, int size, struct tgl_message *list[]) {
+	printf("success = %i, size = %i\n", success, size);
+	for(int i = 0; i < size; i++) {
+		struct tgl_message* msg = list[i];
+		printf("attach size = %s\n", msg->media.document->caption);
+		tg_storage_msg_add(*msg);
+	}
+}
+
+void tg_donwload_attachments(tgl_peer_id_t peer_id) {
+	tgl_do_msg_search(
+			TLS, 
+			peer_id, 
+			CODE_input_messages_filter_audio_documents, 
+			0, /* from */ 
+			0, /* to */
+			100, /* limit */
+			0, /* offset */
+			NULL, /* query */
+			0, /* query len*/
+			_callback,
+			NULL /* callback extra */
+	);	
 }
 
 static void* _tg_tgl_init(void* arg) {
