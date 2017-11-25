@@ -290,7 +290,7 @@ int main(int argc, char *argv[]) {
 	fuse_opt_parse(&args, NULL, tgfs_opts, tgfs_opt_proc);
 	fuse_opt_add_arg(&args, "-odirect_io");
 	fuse_opt_add_arg(&args, "-ouse_ino");
-	fuse_opt_add_arg(&args, "-f");
+	//fuse_opt_add_arg(&args, "-f");
 
 	tg_tgl_init();
 
