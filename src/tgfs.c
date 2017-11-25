@@ -162,7 +162,6 @@ static int tgfs_open(const char *path, struct fuse_file_info *fi)
 	int type;
 	char *filename = (char*)path;
 	int result = parse_path(path, &peer, &type, &filename);
-	printf("test: %s, (%i)\n", path, result);
 	if(filename != NULL && result == 3) {
 		struct tgl_message *msg = tg_storage_msg_by_name(peer, type, filename);
 		if(msg == NULL) 
@@ -176,7 +175,20 @@ static int tgfs_open(const char *path, struct fuse_file_info *fi)
 static int tgfs_read(const char *path, char *buf, size_t size, off_t offset,
 		      struct fuse_file_info *fi)
 {
-	return -EIO;
+	tgl_peer_t *peer;
+	int type;
+	char *filename = (char*)path;
+	int result = parse_path(path, &peer, &type, &filename);
+	if(filename != NULL && result == 3) {
+		printf("read(%li, %li): %s\n", size, offset, path);
+		struct tgl_message *msg = tg_storage_msg_by_name(peer, type, filename);
+		if(msg == NULL) 
+			return -ENOENT;
+		int result = tg_read_file(msg, buf, size, offset);
+		printf("read success = %i\n", result);
+		return result;
+	}
+	return -ENOENT;
 }
 
 static int tgfs_create(const char *path, mode_t mode,

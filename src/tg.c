@@ -229,10 +229,10 @@ static void tg_read_file_callback(struct tgl_state *TLS, void *callback_extra, i
 	data->success = success;
 	pthread_mutex_t *mutex = data->mutex;
 	pthread_mutex_unlock(mutex);
+	printf("callback success %i, read len = %i\n", success, data->len);
 }
 
-size_t tg_read_file(tgl_message_id_t msg_id, void *buf, size_t size, off_t offset) {
-	struct tgl_message *msg = tgl_message_get(TLS, &msg_id);
+size_t tg_read_file(struct tgl_message *msg, void *buf, size_t size, off_t offset) {
 	struct tgl_read_data *data = malloc(sizeof(struct tgl_read_data));
 	data->mutex = malloc(sizeof(pthread_mutex_t));
 	pthread_mutex_init(data->mutex, NULL);
@@ -245,10 +245,16 @@ size_t tg_read_file(tgl_message_id_t msg_id, void *buf, size_t size, off_t offse
 	pthread_mutex_lock(data->mutex);
 	pthread_mutex_destroy(data->mutex);
 
-	size = data->len > size ? size : data->len;
-	memcpy(buf, data->bytes, size);
 
-	tfree(data->bytes, data->len);
+	if(data->success == 1) {
+		memcpy(buf, data->bytes, size);
+		size = data->len > size ? size : data->len;
+
+		free(data->bytes);
+	} else {
+		size = 0;
+	}
+
 	free(data);
 
 	return size;

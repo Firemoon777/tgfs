@@ -34,7 +34,6 @@ struct tgl_message *tg_storage_msg_by_name(tgl_peer_t *peer, int type, const cha
 
 void tg_donwload_attachments(tgl_peer_id_t peer_id, int type);
 
-
-size_t tg_read_file(tgl_message_id_t msg, void *buf, size_t size, off_t offset);
+size_t tg_read_file(struct tgl_message *msg, void *buf, size_t size, off_t offset);
 
 #endif
