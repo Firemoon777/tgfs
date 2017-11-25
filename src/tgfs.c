@@ -76,11 +76,6 @@ static int parse_path(const char *path, tgl_peer_t **peer, int *type, char **fil
 
 static int tgfs_getattr(const char *path, struct stat *stbuf)
 {
-	if(strncmp(path, "/test", 5) == 0) {
-		stbuf->st_mode = S_IFREG | 0600;
-		stbuf->st_nlink = 1;
-		return 0;
-	}
 	tgl_peer_t *peer;
 	int type;
 	char *filename = (char*)path;
@@ -163,53 +158,25 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int tgfs_open(const char *path, struct fuse_file_info *fi)
 {
-	if(strncmp(path, "/test", 5) == 0) {
-		fi->fh = rand();
-		printf("open fh = %li\n", fi->fh);
+	tgl_peer_t *peer;
+	int type;
+	char *filename = (char*)path;
+	int result = parse_path(path, &peer, &type, &filename);
+	printf("test: %s, (%i)\n", path, result);
+	if(filename != NULL && result == 3) {
+		struct tgl_message *msg = tg_storage_msg_by_name(peer, type, filename);
+		if(msg == NULL) 
+			return -ENOENT;
 		return 0;
+
 	}
 	return -ENOENT;
 }
 
-static void read_callback(struct tgl_state *TLS, void *callback_extra, int success) {
-	struct tgl_read_data *data = (struct tgl_read_data*)callback_extra;
-	data->success = success;
-	printf("success: %i\n", success);
-	if(success) {
-		printf("len = %i\n", data->len);
-	}
-}	
-
 static int tgfs_read(const char *path, char *buf, size_t size, off_t offset,
 		      struct fuse_file_info *fi)
 {
-	if(strncmp(path, "/test", 5) == 0) {
-		sleep(2);
-		return 0;
-
-		struct tgl_read_data *data = (struct tgl_read_data*)malloc(sizeof(struct tgl_read_data));
-		data->success = -1;
-		data->offset = offset;
-		data->len = size > 1 << 14 ? size : 1 << 14;
-		tgl_peer_t *selfchat = tgl_peer_get(TLS, TLS->our_id);
-		assert(selfchat);
-		assert(selfchat->last);
-		tgl_do_read_audio(TLS, selfchat->last->media.document, read_callback, data);
-		while(data->success == -1) {
-			//sleep(0.1);
-		}
-		if(data->success == 0) {
-			return -EIO;
-		}
-		data->len = data->len > size ? size : data->len;
-		printf("retured to read, len = %i, size = %li offset = %li\n", data->len, size, offset);
-		memcpy(buf, data->bytes, data->len);
-		size = data->len;
-		free(data);
-		return size;
-		
-	}
-	return -ENOENT;
+	return -EIO;
 }
 
 static int tgfs_create(const char *path, mode_t mode,
@@ -226,7 +193,6 @@ static int tgfs_write(const char *path, const char *buf, size_t size, off_t offs
 }
 
 int tgfs_release(const char *path, struct fuse_file_info *fi) {
-	printf("release fh = %li\n", fi->fh);
 	return 0;
 }
 

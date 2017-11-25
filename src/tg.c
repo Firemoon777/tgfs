@@ -33,8 +33,7 @@ static void _tg_storage_init() {
 		exit(1);
 	}
 	char *tables = "create table peers(type int, id int primary key, access_hash bigint);" 
-		"create table messages(peer_type bigint, peer_id bigint, id bigint primary key, access_hash bigint, media int, d int, caption text, size int);"
-		"create table filecache(id int unique, f blob);";
+		"create table messages(peer_type bigint, peer_id bigint, id bigint primary key, access_hash bigint, media int, d int, caption text, size int);";
 	rc = sqlite3_exec(tg_storage, tables, 0, 0, &err_msg);
 	if(rc != SQLITE_OK) {
 		fprintf(stderr, "Failed to create tables\nSQL Error: %s\n", err_msg);
@@ -113,6 +112,7 @@ void tg_storage_msg_add(struct tgl_message m) {
 	sqlite3_finalize(res);
 }
 
+//TODO: fix potential bug with same caption in different chats
 int tg_storage_msg_stat(const char* path, struct stat *stbuf, int type) {
 	char* select = "select size, d from messages where caption = ? and media = ?;";
 	sqlite3_stmt* res;
@@ -158,6 +158,32 @@ void tg_storage_msg_enumerate_name(tgl_peer_id_t peer, int type, void *buf, fuse
 	sqlite3_finalize(res);
 }
 
+struct tgl_message *tg_storage_msg_by_name(tgl_peer_t *peer, int type, const char *filename) {
+	char* select = "select peer_type, peer_id, id, access_hash from messages where caption = ? and media = ? and peer_id = ?;";
+	sqlite3_stmt* res;
+	int rc = sqlite3_prepare_v2(tg_storage, select, -1, &res, NULL);
+	if(rc != SQLITE_OK) {
+		fprintf(stderr, "Failed to get msg by name\n");
+		return NULL;
+	}
+	sqlite3_bind_text(res, 1, filename, strlen(filename), SQLITE_STATIC);
+	sqlite3_bind_int64(res, 2, type);
+	sqlite3_bind_int64(res, 3, peer->id.peer_id);
+	
+	struct tgl_message *result = NULL;
+	if(sqlite3_step(res) == SQLITE_ROW) {
+		tgl_message_id_t id;
+		id.peer_type = (unsigned)sqlite3_column_int64(res, 0);
+		id.peer_id = (unsigned)sqlite3_column_int64(res, 1);
+		id.id = sqlite3_column_int64(res, 2);
+		id.access_hash = sqlite3_column_int64(res, 3);
+		result = tgl_message_get(TLS, &id);
+	}
+	sqlite3_finalize(res);
+	return result;
+
+}
+
 static void tg_download_attachments_callback(struct tgl_state *TLS, void *callback_extra, int success, int size, struct tgl_message *list[]) {
 	for(int i = 0; i < size; i++) {
 		struct tgl_message* msg = list[i];
@@ -197,6 +223,38 @@ void tg_donwload_attachments(tgl_peer_id_t peer_id, int type) {
 	pthread_mutex_destroy(m);
 	free(m);
 }
+
+static void tg_read_file_callback(struct tgl_state *TLS, void *callback_extra, int success) {
+	struct tgl_read_data *data = (struct tgl_read_data*)callback_extra;
+	data->success = success;
+	pthread_mutex_t *mutex = data->mutex;
+	pthread_mutex_unlock(mutex);
+}
+
+size_t tg_read_file(tgl_message_id_t msg_id, void *buf, size_t size, off_t offset) {
+	struct tgl_message *msg = tgl_message_get(TLS, &msg_id);
+	struct tgl_read_data *data = malloc(sizeof(struct tgl_read_data));
+	data->mutex = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(data->mutex, NULL);
+
+	data->offset = offset;
+	data->len = size;
+
+	pthread_mutex_lock(data->mutex);
+	tgl_do_read_audio(TLS, msg->media.document, tg_read_file_callback, data);
+	pthread_mutex_lock(data->mutex);
+	pthread_mutex_destroy(data->mutex);
+
+	size = data->len > size ? size : data->len;
+	memcpy(buf, data->bytes, size);
+
+	tfree(data->bytes, data->len);
+	free(data);
+
+	return size;
+	
+}
+
 
 static void* _tg_tgl_init(void* arg) {
 	(void)arg;
@@ -242,3 +300,4 @@ static void* _tg_tgl_init(void* arg) {
 	return NULL;
 }
 
+pthread_t t;
