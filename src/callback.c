@@ -59,9 +59,26 @@ void do_get_values (struct tgl_state *TLS, enum tgl_value_type type, const char 
 	}
 }
 
+void print_message_gw (struct tgl_state *TLSR, struct tgl_message *M) {
+	
+}
+
+void user_update (struct tgl_state *TLS, struct tgl_user *C, unsigned flags) {
+	
+}
+void user_update_status(struct tgl_state *TLS, struct tgl_user *U) {
+
+}	
+void chat_update (struct tgl_state *TLS, struct tgl_chat *C, unsigned flags) {
+
+}
+void mark_read (struct tgl_state *TLS, int num, struct tgl_message *list[]) {
+
+}
+
 struct tgl_update_callback upd_cb = {
-  .new_msg = 0,
-  .marked_read = 0,
+  .new_msg = print_message_gw,
+  .marked_read = mark_read,
   .logprintf = 0,
   .get_values = do_get_values,
   .logged_in = on_login,
@@ -73,13 +90,13 @@ struct tgl_update_callback upd_cb = {
   .user_registered = 0, 
   .user_activated = 0, 
   .new_authorization = 0, 
-  .user_update = 0,
-  .chat_update = 0,
+  .user_update = user_update,
+  .chat_update = chat_update,
   .secret_chat_update = 0,
   .channel_update = 0,
-  .msg_receive = 0,
+  .msg_receive = print_message_gw,
   .our_id = 0,
-  .user_status_update = 0,
+  .user_status_update = user_update_status,
   .on_failed_login = on_failed_login
 };
 
