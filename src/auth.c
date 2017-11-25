@@ -34,6 +34,9 @@ char *get_auth_key_filename () {
 	if(auth_file_name) 
 		return auth_file_name;
 	tasprintf (&auth_file_name, "%s/%s/%s", get_home_directory (), CONFIG_DIRECTORY, AUTH_KEY_FILE);
+	mode_t mask = umask(0000);
+	umask(mask);
+	mkdir(auth_file_name, mask);
 	return auth_file_name;
 }
 
