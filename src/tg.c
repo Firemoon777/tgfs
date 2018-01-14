@@ -279,6 +279,7 @@ static void* _tg_tgl_init(void* arg) {
 	tgl_register_app_id (TLS, TGFS_APP_ID, TGFS_APP_HASH); 
   	tgl_set_app_version (TLS, "tgfs " PACKAGE_VERSION);
 
+	// TODO: fix no rsa key segfault
 	int init = tgl_init(TLS);
 	assert(init >= 0);
 

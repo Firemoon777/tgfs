@@ -33,10 +33,13 @@ int str_empty (char *str) {
 char *get_auth_key_filename () {
 	if(auth_file_name) 
 		return auth_file_name;
-	tasprintf (&auth_file_name, "%s/%s/%s", get_home_directory (), CONFIG_DIRECTORY, AUTH_KEY_FILE);
+	tasprintf (&auth_file_name, "%s/%s", get_home_directory (), CONFIG_DIRECTORY);
 	mode_t mask = umask(0000);
 	umask(mask);
 	mkdir(auth_file_name, mask);
+	tfree_str(auth_file_name);
+	tasprintf (&auth_file_name, "%s/%s/%s", get_home_directory (), CONFIG_DIRECTORY, AUTH_KEY_FILE);
+	open(auth_file_name, O_RDWR | O_CREAT, 0600);
 	return auth_file_name;
 }
 
