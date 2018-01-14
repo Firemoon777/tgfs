@@ -126,6 +126,7 @@ static int tgfs_getattr(const char *path, struct stat *stbuf)
 static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			 off_t offset, struct fuse_file_info *fi)
 {
+	fprintf(stderr, "readdir started; path: %s\n", path);
 	tgl_peer_t *peer;
 	int type;
 	char *filename = (char*)path;
@@ -148,7 +149,9 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		if(result != 2) {
 			return -ENOENT;
 		}
+		fprintf(stderr, "ready for downloading!\n");
 		tg_donwload_attachments(peer->id, type);	
+		fprintf(stderr, "downloaded!\n");
 		tg_storage_msg_enumerate_name(peer->id, type, buf, filler);	
 		return 0;	
 	}
