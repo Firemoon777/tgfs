@@ -58,6 +58,15 @@ static int parse_path(const char *path, tgl_peer_t **peer, int *type, char **fil
 	strncpy(dir, path + 1, s);
 	dir[s-1] = 0;
 	//printf("second: %s\n", dir);
+	if(strncmp(dir, "Video", 6) == 0) {
+		*type = TGFS_VIDEOS;
+	}
+	if(strncmp(dir, "Photo", 6) == 0) {
+		*type = TGFS_PHOTOS;
+	}
+	if(strncmp(dir, "Documents", 10) == 0) {
+		*type = TGFS_DOCUMENTS;
+	}
 	if(strncmp(dir, "Music", 6) == 0) {
 		*type = TGFS_MUSIC;
 	}
@@ -143,6 +152,9 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		if(result != 1) {
 			return -ENOENT;
 		}
+		filler(buf, "Video", NULL, 0);
+		filler(buf, "Photo", NULL, 0);
+		filler(buf, "Documents", NULL, 0);
 		filler(buf, "Music", NULL, 0);
 		return 0;
 	} else if(filename == NULL) {

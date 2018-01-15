@@ -15,6 +15,9 @@
 #define PACKAGE_VERSION "0.2"
 
 enum {
+	TGFS_VIDEOS = 4,
+	TGFS_PHOTOS = 3,
+	TGFS_DOCUMENTS = 2,
 	TGFS_MUSIC = 1,
 	TGFS_UNKNOWN = 0
 };

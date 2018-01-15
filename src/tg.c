@@ -96,15 +96,28 @@ void tg_storage_msg_add(struct tgl_message m) {
 	sqlite3_bind_int64(res, 3, m.permanent_id.id);
 	sqlite3_bind_int64(res, 4, m.permanent_id.access_hash);
 	sqlite3_bind_int64(res, 6, m.date);
+	fprintf(stderr, "message preparsed\n");
 	switch(m.media.type) {
+		case tgl_message_media_video:
+			sqlite3_bind_int64(res, 5, TGFS_VIDEOS);
+			break;
+		case tgl_message_media_photo:
+			sqlite3_bind_int64(res, 5, TGFS_PHOTOS);
+			sqlite3_bind_text(res, 7, "stub", strlen("stub"), SQLITE_STATIC);
+			break;
 		case tgl_message_media_document:
 			sqlite3_bind_int64(res, 5, TGFS_MUSIC);
-			sqlite3_bind_text(res, 7, m.media.document->caption, strlen(m.media.document->caption), SQLITE_STATIC);
+			if(m.media.document->caption != NULL) {
+				sqlite3_bind_text(res, 7, m.media.document->caption, strlen(m.media.document->caption), SQLITE_STATIC);
+			} else {
+				sqlite3_bind_text(res, 7, "stub", strlen("stub"), SQLITE_STATIC);
+			}
 			sqlite3_bind_int(res, 8, m.media.document->size);
 			break;
 		default:
 			sqlite3_bind_text(res, 7, m.message, sizeof(m.message), SQLITE_STATIC);
 	}
+	fprintf(stderr, "message parsed\n");
 	if(sqlite3_step(res) != SQLITE_DONE) {
 		fprintf(stderr,  "Failed to insert message\n");
 	}
@@ -152,6 +165,10 @@ void tg_storage_msg_enumerate_name(tgl_peer_id_t peer, int type, void *buf, fuse
 	int step = sqlite3_step(res);
 	while(step == SQLITE_ROW) {
 		const char* name = (char*)sqlite3_column_text(res, 0);
+		if(name == NULL) {
+			fprintf(stderr, "Shit\n");
+		}
+		fprintf(stderr, "name: >%s< size: %ld\n", name, strlen(name));
 		filler(buf, name, NULL, 0); 
 		step = sqlite3_step(res);
 	}
@@ -195,6 +212,15 @@ static void tg_download_attachments_callback(struct tgl_state *TLS, void *callba
 void tg_donwload_attachments(tgl_peer_id_t peer_id, int type) {
 	int type_code;
 	switch(type) {
+		case TGFS_VIDEOS:
+			type_code = CODE_input_messages_filter_video;
+			break;
+		case TGFS_PHOTOS:
+			type_code = CODE_input_messages_filter_photos;
+			break;
+		case TGFS_DOCUMENTS:
+			type_code = CODE_input_messages_filter_document;
+			break;
 		case TGFS_MUSIC:
 			type_code = CODE_input_messages_filter_audio_documents;
 			break;
