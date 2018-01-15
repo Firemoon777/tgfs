@@ -120,7 +120,7 @@ void tg_storage_msg_add(struct tgl_message m) {
 			sqlite3_bind_int64(res, 5, TGFS_PHOTOS);
 			break;
 		case tgl_message_media_document:
-			sqlite3_bind_int64(res, 5, TGFS_MUSIC);
+			sqlite3_bind_int64(res, 5, TGFS_DOCUMENTS);
 			sqlite3_bind_int(res, 8, m.media.document->size);
 			break;
 		default:
@@ -274,7 +274,7 @@ size_t tg_read_file(struct tgl_message *msg, void *buf, size_t size, off_t offse
 	data->len = size;
 
 	pthread_mutex_lock(data->mutex);
-	tgl_do_read_audio(TLS, msg->media.document, tg_read_file_callback, data);
+	tgl_do_read_document(TLS, msg->media.document, tg_read_file_callback, data);
 	pthread_mutex_lock(data->mutex);
 	pthread_mutex_destroy(data->mutex);
 

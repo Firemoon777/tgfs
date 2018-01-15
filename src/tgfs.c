@@ -181,7 +181,6 @@ static int tgfs_open(const char *path, struct fuse_file_info *fi)
 		if(msg == NULL) 
 			return -ENOENT;
 		return 0;
-
 	}
 	return -ENOENT;
 }
