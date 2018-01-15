@@ -76,10 +76,17 @@ void mark_read (struct tgl_state *TLS, int num, struct tgl_message *list[]) {
 
 }
 
+void logprintf(const char *format, ...) {
+  va_list ap;
+  va_start (ap, format);
+  vfprintf (stdout, format, ap);
+  va_end (ap);
+}
+
 struct tgl_update_callback upd_cb = {
   .new_msg = print_message_gw,
   .marked_read = mark_read,
-  .logprintf = 0,
+  .logprintf = logprintf,
   .get_values = do_get_values,
   .logged_in = on_login,
   .started = on_started,

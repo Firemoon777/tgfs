@@ -172,10 +172,6 @@ void tg_storage_msg_enumerate_name(tgl_peer_id_t peer, int type, void *buf, fuse
 	int step = sqlite3_step(res);
 	while(step == SQLITE_ROW) {
 		const char* name = (char*)sqlite3_column_text(res, 0);
-		if(name == NULL) {
-			fprintf(stderr, "Shit\n");
-		}
-		fprintf(stderr, "name: >%s< size: %ld\n", name, strlen(name));
 		filler(buf, name, NULL, 0); 
 		step = sqlite3_step(res);
 	}
@@ -209,6 +205,7 @@ struct tgl_message *tg_storage_msg_by_name(tgl_peer_t *peer, int type, const cha
 }
 
 static void tg_download_attachments_callback(struct tgl_state *TLS, void *callback_extra, int success, int size, struct tgl_message *list[]) {
+	fprintf(stderr, "lol, callback\n");
 	for(int i = 0; i < size; i++) {
 		struct tgl_message* msg = list[i];
 		tg_storage_msg_add(*msg);
@@ -332,6 +329,8 @@ static void* _tg_tgl_init(void* arg) {
   	tgl_login (TLS);
 
 	_tg_storage_init();
+
+	TLS->verbosity = 5;
 
 	while (1) {
     		event_base_loop (TLS->ev_base, EVLOOP_ONCE);
