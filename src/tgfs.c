@@ -155,7 +155,6 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		filler(buf, "Video", NULL, 0);
 		filler(buf, "Photo", NULL, 0);
 		filler(buf, "Documents", NULL, 0);
-		filler(buf, "Music", NULL, 0);
 		return 0;
 	} else if(filename == NULL) {
 		if(result != 2) {

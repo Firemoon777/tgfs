@@ -85,7 +85,7 @@ void tg_storage_msg_add(struct tgl_message m) {
 	char* err_msg = NULL;
 	sqlite3_stmt* res;
 	insert = "insert into messages(peer_type, peer_id, id, access_hash, media, d, caption, size) "
-			"values(?, ?, ?, ?, ?, ?, ?, ?);";
+			"values(?, ?, ?, ?, ?, ?, replace(?, '/', '_'), ?);";
 	int rc = sqlite3_prepare_v2(tg_storage, insert, -1, &res, 0);
 	if(rc != SQLITE_OK) {
 		fprintf(stderr, "Failed to insert msg: %s\n", err_msg);
@@ -96,32 +96,39 @@ void tg_storage_msg_add(struct tgl_message m) {
 	sqlite3_bind_int64(res, 3, m.permanent_id.id);
 	sqlite3_bind_int64(res, 4, m.permanent_id.access_hash);
 	sqlite3_bind_int64(res, 6, m.date);
-	fprintf(stderr, "message preparsed\n");
+	char dateCaption[100];
+	char* caption;
+	int caption_len;
+	if(m.media.type == tgl_message_media_document && m.media.document->caption != NULL) {
+		caption = m.media.document->caption;	
+	} else if(m.media.caption != NULL && strlen(m.media.caption) > 0) {
+		caption = m.media.caption;
+	} else {
+		time_t stamp = m.date;
+		struct tm *t = localtime(&stamp);
+		strftime(dateCaption, sizeof(dateCaption)-1, "%Y-%m-%d %H:%M", t);
+		caption = dateCaption;
+	}
+	fprintf(stderr, "caption: %s\n", caption);
+	caption_len = strlen(caption);
+	sqlite3_bind_text(res, 7, caption, caption_len, SQLITE_STATIC);
 	switch(m.media.type) {
 		case tgl_message_media_video:
 			sqlite3_bind_int64(res, 5, TGFS_VIDEOS);
 			break;
 		case tgl_message_media_photo:
 			sqlite3_bind_int64(res, 5, TGFS_PHOTOS);
-			sqlite3_bind_text(res, 7, "stub", strlen("stub"), SQLITE_STATIC);
 			break;
 		case tgl_message_media_document:
 			sqlite3_bind_int64(res, 5, TGFS_MUSIC);
-			if(m.media.document->caption != NULL) {
-				sqlite3_bind_text(res, 7, m.media.document->caption, strlen(m.media.document->caption), SQLITE_STATIC);
-			} else {
-				sqlite3_bind_text(res, 7, "stub", strlen("stub"), SQLITE_STATIC);
-			}
 			sqlite3_bind_int(res, 8, m.media.document->size);
 			break;
 		default:
 			sqlite3_bind_text(res, 7, m.message, sizeof(m.message), SQLITE_STATIC);
 	}
-	fprintf(stderr, "message parsed\n");
 	if(sqlite3_step(res) != SQLITE_DONE) {
 		fprintf(stderr,  "Failed to insert message\n");
 	}
-
 	sqlite3_finalize(res);
 }
 
