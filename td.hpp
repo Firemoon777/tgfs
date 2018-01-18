@@ -22,7 +22,6 @@ class Td {
   void auth();
   void getContacts();
 
- private:
   using Object = td_api::object_ptr<td_api::Object>;
   std::unique_ptr<td::Client> client_;
 
@@ -38,6 +37,7 @@ class Td {
 
   std::map<std::int64_t, std::string> chat_title_;
 
+ private:
   void send_query(td_api::object_ptr<td_api::Function> f, std::function<void(Object)> handler);
   void process_response(td::Client::Response response);
   void process_update(td_api::object_ptr<td_api::Object> update);

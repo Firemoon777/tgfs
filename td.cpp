@@ -41,6 +41,27 @@ void Td::auth() {
   }      
 }
 
+void Td::getContacts() {
+  auto wait = true;
+  send_query(td_api::make_object<td_api::getChats>(std::numeric_limits<std::int64_t>::max(), 0, 1000),
+                   [this, &wait](Object object) {
+                     if (object->get_id() == td_api::error::ID) {
+                       return;
+                     }
+                     auto chats = td::move_tl_object_as<td_api::chats>(object);
+                     for (auto chat_id : chats->chat_ids_) {
+                       std::cerr << "[id:" << chat_id << "] [title:" << chat_title_[chat_id] << "]" << std::endl;
+                     }
+		     wait = false;
+                   });
+  while(wait) {
+    auto response = client_->receive(0);
+    if (response.object) {
+      process_response(std::move(response));
+    } 
+  }
+}
+
 void Td::send_query(td_api::object_ptr<td_api::Function> f, std::function<void(Object)> handler) {
   auto query_id = next_query_id();
   if (handler) {
@@ -70,6 +91,26 @@ void Td::process_update(td_api::object_ptr<td_api::Object> update) {
                    [this](td_api::updateAuthorizationState &update_authorization_state) {
                      authorization_state_ = std::move(update_authorization_state.authorization_state_);
                      on_authorization_state_update();
+                   },
+		   [this](td_api::updateNewChat &update_new_chat) {
+                       chat_title_[update_new_chat.chat_->id_] = update_new_chat.chat_->title_;
+                   },
+                   [this](td_api::updateChatTitle &update_chat_title) {
+                     chat_title_[update_chat_title.chat_id_] = update_chat_title.title_;
+                   },
+                   [this](td_api::updateUser &update_user) {
+                     auto user_id = update_user.user_->id_;
+                     users_[user_id] = std::move(update_user.user_);
+                   },
+                   [this](td_api::updateNewMessage &update_new_message) {
+                     auto chat_id = update_new_message.message_->chat_id_;
+                     auto sender_user_name = update_new_message.message_->sender_user_id_;
+                     std::string text;
+                     if (update_new_message.message_->content_->get_id() == td_api::messageText::ID) {
+                       text = static_cast<td_api::messageText &>(*update_new_message.message_->content_).text_;
+                     }
+                     std::cerr << "Got message: [chat_id:" << chat_id << "] [from:" << sender_user_name << "] ["
+                               << text << "]" << std::endl;
                    },
                    [](auto &update) {}));
 }
