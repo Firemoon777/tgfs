@@ -20,6 +20,7 @@ class Td {
  public:
   Td();
   void auth();
+  void getContacts();
 
  private:
   using Object = td_api::object_ptr<td_api::Object>;
