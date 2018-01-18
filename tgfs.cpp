@@ -4,6 +4,8 @@
 #include <iostream>
 #include <errno.h>
 
+#include "td.hpp"
+
 static int tgfs_getattr(const char *path, struct stat *stbuf) {
 	return -ENOENT;
 }
@@ -28,6 +30,8 @@ static const struct fuse_operations tgfs_oper = {
 };
 
 int main(int argc, char* argv[]) {
+	Td td;
+	td.auth();
 	int fuse_result = fuse_main(argc, argv, &tgfs_oper, NULL);
 	return fuse_result;
 }
