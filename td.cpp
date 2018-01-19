@@ -94,6 +94,7 @@ void Td::process_update(td_api::object_ptr<td_api::Object> update) {
                    },
 		   [this](td_api::updateNewChat &update_new_chat) {
                        chat_title_[update_new_chat.chat_->id_] = update_new_chat.chat_->title_;
+		       chats_[update_new_chat.chat_->id_] = std::move(update_new_chat.chat_);
                    },
                    [this](td_api::updateChatTitle &update_chat_title) {
                      chat_title_[update_chat_title.chat_id_] = update_chat_title.title_;

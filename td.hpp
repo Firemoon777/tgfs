@@ -36,6 +36,7 @@ class Td {
   std::map<std::int32_t, td_api::object_ptr<td_api::user>> users_;
 
   std::map<std::int64_t, std::string> chat_title_;
+  std::map<std::int64_t, td_api::object_ptr<td_api::chat>> chats_;
 
  private:
   void send_query(td_api::object_ptr<td_api::Function> f, std::function<void(Object)> handler);

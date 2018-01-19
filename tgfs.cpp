@@ -9,6 +9,7 @@
 #include <iterator>
 #include <vector>
 #include <string>
+#include <ctime>
 
 #include "td.hpp"
 
@@ -40,11 +41,46 @@ static int tgfs_getattr(const char *path, struct stat *stbuf) {
 	} else if(tokens.size() == 1) {
 		std::map<std::int64_t, std::string>::iterator it;
 		for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
-			fprintf(stderr, "compare: %s == %s\n", it->second.c_str(), tokens[0].c_str());
 			if(tokens[0].compare(it->second) == 0) {
-				fprintf(stderr, "success\n");
-				stbuf->st_mode = S_IFDIR | 0500;
-				stbuf->st_nlink = 2;
+				auto chat_it = td_tgfs.chats_.find(it->first);
+				// Perm const 
+				stbuf->st_mode = S_IFDIR | 0700;
+				// Unread count
+				stbuf->st_nlink = chat_it->second->unread_count_;
+				// last message time
+				if(chat_it->second->last_message_) {
+					auto message = chat_it->second->last_message_->date_;
+					stbuf->st_atime = message;
+					stbuf->st_ctime = message;
+					stbuf->st_mtime = message;
+				}
+				// Determine if public or chat
+				if(chat_it->second->type_->get_id() == td_api::chatTypeSupergroup::ID) {
+					// Supergroup
+					auto type = static_cast<td_api::chatTypeSupergroup*>(chat_it->second->type_.get());
+					if(type->is_channel_) {
+						// Supergroup-channel
+						stbuf->st_mode &=~ 0200;
+					}
+				} else if(chat_it->second->type_->get_id() == td_api::chatTypePrivate::ID) {
+					// Chat with user
+					auto type = static_cast<td_api::chatTypePrivate*>(chat_it->second->type_.get());
+					auto user = td_tgfs.users_.find(type->user_id_);
+					// By default we don't know user's last seen time
+					std::int32_t time = 0;
+					if(user->second->status_->get_id() == td_api::userStatusOnline::ID) {
+						// User is online
+						time = std::time(nullptr);
+					} else if(user->second->status_->get_id() == td_api::userStatusOffline::ID) {
+						// User is offline, but shares last seen time
+						auto status = static_cast<td_api::userStatusOffline*>(user->second->status_.get());
+						time = status->was_online_;
+					}
+					stbuf->st_atime = time;
+					stbuf->st_ctime = time;
+					stbuf->st_mtime = time;
+				}
+
 				return 0;
 			}
 		}
