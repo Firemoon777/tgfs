@@ -113,6 +113,11 @@ void Td::process_update(td_api::object_ptr<td_api::Object> update) {
                      std::cerr << "Got message: [chat_id:" << chat_id << "] [from:" << sender_user_name << "] ["
                                << text << "]" << std::endl;
                    },
+		   [this](td_api::updateChatLastMessage &update) {
+			if(update.last_message_) {
+				chats_[update.chat_id_]->last_message_ = std::move(update.last_message_);
+			}
+		   },
                    [](auto &update) {}));
 }
 

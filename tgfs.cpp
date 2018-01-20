@@ -25,14 +25,71 @@ void split(std::vector<std::string> & tokens, const char *path) {
 	}
 }
 
+static int tgfs_getattr_chat(std::int64_t id_, struct stat *stbuf) {
+	auto chat_it = td_tgfs.chats_.find(id_);
+	if(chat_it == td_tgfs.chats_.end()) {
+		return -ENOENT;
+	}
+	// inode
+	stbuf->st_ino = id_;
+	// Perm const 
+	stbuf->st_mode = S_IFDIR | 0700;
+	// Unread count
+	stbuf->st_nlink = chat_it->second->unread_count_;
+	// set m(essage)time
+	if(chat_it->second->last_message_) {
+		auto message = chat_it->second->last_message_->date_;
+		stbuf->st_mtime = message;
+	}
+	if(chat_it->second->type_->get_id() == td_api::chatTypePrivate::ID) {
+		// Private chat
+		auto user_id = static_cast<td_api::chatTypePrivate*>(chat_it->second->type_.get())->user_id_;
+		auto user_it = td_tgfs.users_.find(user_id);
+		if(user_it->second->type_->get_id() == td_api::userTypeBot::ID) {
+			// Chat with bot
+			stbuf->st_mode |= 0006;
+			stbuf->st_mtime = stbuf->st_atime;
+		} else if(user_it->second->type_->get_id() == td_api::userTypeRegular::ID) {
+			// Regular chat
+			if(user_it->second->status_->get_id() == td_api::userStatusOnline::ID) {
+				// User is online, set atime to now
+				stbuf->st_atime = std::time(nullptr);
+			} else if(user_it->second->status_->get_id() == td_api::userStatusOffline::ID) {
+				// User is offline, but we know accurate date of last online
+				auto status = static_cast<td_api::userStatusOffline*>(user_it->second->status_.get());
+				stbuf->st_atime = status->was_online_;
+			} else {
+				// We have no idea about user's last online
+				// TODO: round atime to day/week/month ago
+			}
+		} else {
+			// Deleted on unknown user	
+		}
+	} else if(chat_it->second->type_->get_id() == td_api::chatTypeSupergroup::ID) {
+		// Supergroup
+		std::cerr << "super chat" << std::endl;
+		auto type = static_cast<td_api::chatTypeSupergroup*>(chat_it->second->type_.get());
+		if(type->is_channel_) {
+			// Supergroup-channel, no write permission
+			// TODO: check admins if available and set correct permissions
+			stbuf->st_mode &=~ 0200;
+		}
+		// Chat is accessible by people in group, so g+rw
+		stbuf->st_mode |= 0060;
+		// Since groups have no last seen date, let atime equals to mtime
+		stbuf->st_mtime = stbuf->st_atime;
+		std::cerr << "super chat end" << std::endl;
+	} else if(chat_it->second->type_->get_id() == td_api::chatTypeBasicGroup::ID) {
+		// Basic groups, nothing special
+		stbuf->st_mode |= 0060;
+		stbuf->st_mtime = stbuf->st_atime;
+	}
+	return 0;
+}
+
 static int tgfs_getattr(const char *path, struct stat *stbuf) {
 	std::vector<std::string> tokens;
 	split(tokens, path);
-
-	fprintf(stderr, "getattr(%i): %s\n", tokens.size(), path);
-	for(auto i = 0; i < tokens.size(); i++) {
-		fprintf(stderr, "token %i: %s\n", i, tokens[i].c_str());
-	}
 
 	if(tokens.size() == 0) {
 		stbuf->st_mode = S_IFDIR | 0500;
@@ -42,46 +99,7 @@ static int tgfs_getattr(const char *path, struct stat *stbuf) {
 		std::map<std::int64_t, std::string>::iterator it;
 		for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
 			if(tokens[0].compare(it->second) == 0) {
-				auto chat_it = td_tgfs.chats_.find(it->first);
-				// Perm const 
-				stbuf->st_mode = S_IFDIR | 0700;
-				// Unread count
-				stbuf->st_nlink = chat_it->second->unread_count_;
-				// last message time
-				if(chat_it->second->last_message_) {
-					auto message = chat_it->second->last_message_->date_;
-					stbuf->st_atime = message;
-					stbuf->st_ctime = message;
-					stbuf->st_mtime = message;
-				}
-				// Determine if public or chat
-				if(chat_it->second->type_->get_id() == td_api::chatTypeSupergroup::ID) {
-					// Supergroup
-					auto type = static_cast<td_api::chatTypeSupergroup*>(chat_it->second->type_.get());
-					if(type->is_channel_) {
-						// Supergroup-channel
-						stbuf->st_mode &=~ 0200;
-					}
-				} else if(chat_it->second->type_->get_id() == td_api::chatTypePrivate::ID) {
-					// Chat with user
-					auto type = static_cast<td_api::chatTypePrivate*>(chat_it->second->type_.get());
-					auto user = td_tgfs.users_.find(type->user_id_);
-					// By default we don't know user's last seen time
-					std::int32_t time = 0;
-					if(user->second->status_->get_id() == td_api::userStatusOnline::ID) {
-						// User is online
-						time = std::time(nullptr);
-					} else if(user->second->status_->get_id() == td_api::userStatusOffline::ID) {
-						// User is offline, but shares last seen time
-						auto status = static_cast<td_api::userStatusOffline*>(user->second->status_.get());
-						time = status->was_online_;
-					}
-					stbuf->st_atime = time;
-					stbuf->st_ctime = time;
-					stbuf->st_mtime = time;
-				}
-
-				return 0;
+				return tgfs_getattr_chat(it->first, stbuf);
 			}
 		}
 	}
@@ -89,13 +107,22 @@ static int tgfs_getattr(const char *path, struct stat *stbuf) {
 }
 
 static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {
-	if(strncmp(path, "/", 2) == 0) {
-		filler(buf, ".", NULL, 0);
-		filler(buf, "..", NULL, 0);
-		std::map<std::int64_t, std::string>::iterator it;
+	std::vector<std::string> tokens;
+	split(tokens, path);
+		
+	filler(buf, ".", NULL, 0);
+	filler(buf, "..", NULL, 0);
+		
+	std::map<std::int64_t, std::string>::iterator it;
+
+	if(tokens.size() == 0) {
 		for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
 			filler(buf, it->second.c_str(), NULL, 0);
 		}
+		return 0;
+	} else if(tokens.size() == 1) {
+		return -ENOENT;
+	} else if(tokens.size() == 2) {
 		return 0;
 	}
 	return -ENOENT;
