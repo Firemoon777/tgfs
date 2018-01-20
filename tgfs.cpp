@@ -188,6 +188,7 @@ static const struct fuse_operations tgfs_oper = {
 int main(int argc, char* argv[]) {
 	td_tgfs.auth();
 	td_tgfs.getContacts();
+	td_tgfs.loop();
 	int fuse_result = fuse_main(argc, argv, &tgfs_oper, NULL);
 	return fuse_result;
 }

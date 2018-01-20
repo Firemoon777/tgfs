@@ -13,6 +13,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <thread>
 
 namespace td_api = td::td_api;
 
@@ -21,6 +22,8 @@ class Td {
   Td();
   void auth();
   void getContacts();
+  void loop();
+  std::thread event_loop;
 
   using Object = td_api::object_ptr<td_api::Object>;
   std::unique_ptr<td::Client> client_;
@@ -39,6 +42,7 @@ class Td {
   std::map<std::int64_t, td_api::object_ptr<td_api::chat>> chats_;
 
  private:
+  void inner_loop();
   void send_query(td_api::object_ptr<td_api::Function> f, std::function<void(Object)> handler);
   void process_response(td::Client::Response response);
   void process_update(td_api::object_ptr<td_api::Object> update);

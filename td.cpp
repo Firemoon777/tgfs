@@ -1,3 +1,10 @@
+// Based on tdlib/td/example/cpp/td_example.cpp
+//
+// Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com) 2014-2018
+//
+// Distributed under the Boost Software License, Version 1.0. (See copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
 #include "td.hpp"
 
 // overloaded magic
@@ -41,6 +48,16 @@ void Td::auth() {
   }      
 }
 
+void Td::loop() {
+	event_loop = std::thread(&Td::inner_loop, this);	
+}
+
+void Td::inner_loop() {
+	while(true) {
+		process_response(client_->receive(10));
+	}
+}
+
 void Td::getContacts() {
   auto wait = true;
   send_query(td_api::make_object<td_api::getChats>(std::numeric_limits<std::int64_t>::max(), 0, 1000),
@@ -48,10 +65,7 @@ void Td::getContacts() {
                      if (object->get_id() == td_api::error::ID) {
                        return;
                      }
-                     auto chats = td::move_tl_object_as<td_api::chats>(object);
-                     for (auto chat_id : chats->chat_ids_) {
-                       std::cerr << "[id:" << chat_id << "] [title:" << chat_title_[chat_id] << "]" << std::endl;
-                     }
+                     //chats_ = td::move_tl_object_as<td_api::chats>(object);
 		     wait = false;
                    });
   while(wait) {
