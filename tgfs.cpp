@@ -25,7 +25,7 @@ void split(std::vector<std::string> & tokens, const char *path) {
 	}
 }
 
-static int tgfs_getattr_chat(std::int64_t id_, struct stat *stbuf) {
+static int tgfs_getattr_root(std::int64_t id_, struct stat *stbuf) {
 	auto chat_it = td_tgfs.chats_.find(id_);
 	if(chat_it == td_tgfs.chats_.end()) {
 		return -ENOENT;
@@ -67,7 +67,6 @@ static int tgfs_getattr_chat(std::int64_t id_, struct stat *stbuf) {
 		}
 	} else if(chat_it->second->type_->get_id() == td_api::chatTypeSupergroup::ID) {
 		// Supergroup
-		std::cerr << "super chat" << std::endl;
 		auto type = static_cast<td_api::chatTypeSupergroup*>(chat_it->second->type_.get());
 		if(type->is_channel_) {
 			// Supergroup-channel, no write permission
@@ -78,7 +77,6 @@ static int tgfs_getattr_chat(std::int64_t id_, struct stat *stbuf) {
 		stbuf->st_mode |= 0060;
 		// Since groups have no last seen date, let atime equals to mtime
 		stbuf->st_mtime = stbuf->st_atime;
-		std::cerr << "super chat end" << std::endl;
 	} else if(chat_it->second->type_->get_id() == td_api::chatTypeBasicGroup::ID) {
 		// Basic groups, nothing special
 		stbuf->st_mode |= 0060;
@@ -87,23 +85,62 @@ static int tgfs_getattr_chat(std::int64_t id_, struct stat *stbuf) {
 	return 0;
 }
 
+static int tgfs_getattr_chat(std::int64_t id_, std::string token, struct stat *stbuf) {
+	auto chat_it = td_tgfs.chats_.find(id_);
+	if(chat_it == td_tgfs.chats_.end()) {
+		return -ENOENT;
+	}
+	if(token.compare("photo.jpg") == 0) {
+		// Photo file
+		stbuf->st_mode = S_IFREG | 0600;
+		stbuf->st_size = chat_it->second->photo_->big_->size_;
+		if(stbuf->st_size == 0) {
+			stbuf->st_size = chat_it->second->photo_->big_->expected_size_;
+		}
+	} else {
+		// Unknown
+		return -ENOENT;
+	}
+	return 0;
+}
+
 static int tgfs_getattr(const char *path, struct stat *stbuf) {
 	std::vector<std::string> tokens;
 	split(tokens, path);
+
+	std::map<std::int64_t, std::string>::iterator it;
 
 	if(tokens.size() == 0) {
 		stbuf->st_mode = S_IFDIR | 0500;
 		stbuf->st_nlink = 2;
 		return 0;
 	} else if(tokens.size() == 1) {
-		std::map<std::int64_t, std::string>::iterator it;
 		for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
 			if(tokens[0].compare(it->second) == 0) {
-				return tgfs_getattr_chat(it->first, stbuf);
+				return tgfs_getattr_root(it->first, stbuf);
 			}
 		}
+	} else if(tokens.size() == 2) {
+		for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
+			if(tokens[0].compare(it->second) == 0) {
+				return tgfs_getattr_chat(it->first, tokens[1], stbuf);
+			}
+		}
+
 	}
 	return -ENOENT;
+}
+
+static int tgfs_readdir_chat(std::int64_t id_, void* buf, fuse_fill_dir_t filler) {
+	auto chat = td_tgfs.chats_.find(id_);
+	if(chat == td_tgfs.chats_.end()) {
+		return -ENOENT;
+	}
+	if(chat->second->photo_) {
+		std::string name = "photo";
+		filler(buf, "photo.jpg", NULL, 0);
+	}
+	return 0;
 }
 
 static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {
@@ -121,6 +158,11 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 		}
 		return 0;
 	} else if(tokens.size() == 1) {
+		for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
+			if(tokens[0].compare(it->second) == 0) {
+				return tgfs_readdir_chat(it->first, buf, filler);
+			}
+		}
 		return -ENOENT;
 	} else if(tokens.size() == 2) {
 		return 0;
