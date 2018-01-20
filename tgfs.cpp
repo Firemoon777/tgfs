@@ -71,7 +71,7 @@ static int tgfs_getattr_root(std::int64_t id_, struct stat *stbuf) {
 		if(type->is_channel_) {
 			// Supergroup-channel, no write permission
 			// TODO: check admins if available and set correct permissions
-			stbuf->st_mode &=~ 0200;
+			stbuf->st_mode &=~ 0220;
 		}
 		// Chat is accessible by people in group, so g+rw
 		stbuf->st_mode |= 0060;

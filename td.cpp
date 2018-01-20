@@ -65,7 +65,10 @@ void Td::getContacts() {
                      if (object->get_id() == td_api::error::ID) {
                        return;
                      }
-                     //chats_ = td::move_tl_object_as<td_api::chats>(object);
+		     auto chats = td::move_tl_object_as<td_api::chats>(object);
+                     for (auto chat_id : chats->chat_ids_) {
+                      	std::cerr << "[id:" << chat_id << "] [title:" << chat_title_[chat_id] << "]" << std::endl;
+		     }
 		     wait = false;
                    });
   while(wait) {
@@ -124,13 +127,14 @@ void Td::process_update(td_api::object_ptr<td_api::Object> update) {
                      if (update_new_message.message_->content_->get_id() == td_api::messageText::ID) {
                        text = static_cast<td_api::messageText &>(*update_new_message.message_->content_).text_;
                      }
-                     std::cerr << "Got message: [chat_id:" << chat_id << "] [from:" << sender_user_name << "] ["
-                               << text << "]" << std::endl;
                    },
 		   [this](td_api::updateChatLastMessage &update) {
 			if(update.last_message_) {
 				chats_[update.chat_id_]->last_message_ = std::move(update.last_message_);
 			}
+		   },
+		   [this](td_api::updateChatReadInbox &update) {
+			chats_[update.chat_id_]->unread_count_ = update.unread_count_;
 		   },
                    [](auto &update) {}));
 }
