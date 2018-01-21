@@ -11,10 +11,12 @@ install:
  - sudo apt-get install libevent-dev
  - sudo apt-get install libjansson-dev
  - sudo apt-get install fuse libfuse-dev
- - sudo apt-get install sqlite3 libsqlite3-dev
+ - sudo apt-get install gperf
  
 script:
   - git submodule update --init --recursive
-  - ./configure
-  - make
+  - mkdir build
+  - cd build
+  - cmake ..
+  - cmake --build .
 
