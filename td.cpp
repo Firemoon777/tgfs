@@ -78,6 +78,53 @@ int Td::download_file(std::int32_t id_, std::int32_t p) {
 	return fh;
 }
 
+td_api::object_ptr<td_api::SearchMessagesFilter> Td::get_filter_by_type(media_type type) {
+	switch(type) {
+		case DOCUMENTS:
+			return td_api::make_object<td_api::searchMessagesFilterDocument>();
+		case AUDIO:
+			return td_api::make_object<td_api::searchMessagesFilterAudio>();
+		default:
+			return nullptr;
+	}
+}
+
+void Td::search_msg(std::int64_t id_, media_type type) {
+	std::int64_t offset = 0;
+	auto filter = get_filter_by_type(type);
+	send_query(td_api::make_object<td_api::searchChatMessages>(id_, "", 0, 0, offset, 1, std::move(filter)),
+			[this](Object object) {
+				if(object->get_id() == td_api::error::ID) {
+					auto error = td::move_tl_object_as<td_api::error>(object);
+					std::cerr << "Error: " << to_string(error) << std::endl;
+					return;
+				}
+				auto messages = td::move_tl_object_as<td_api::messages>(object);
+			}
+		  );
+}
+
+int Td::search_msg_count(std::int64_t id_, media_type type) {
+	std::int64_t count = -1;
+	auto filter = get_filter_by_type(type);
+	send_query(td_api::make_object<td_api::searchChatMessages>(id_, "", 0, 0, 0, 1, std::move(filter)),
+			[this, &count](Object object) {
+				if(object->get_id() == td_api::error::ID) {
+					auto error = td::move_tl_object_as<td_api::error>(object);
+					std::cerr << "Error: " << to_string(error) << std::endl;
+					count = 0;
+					return;
+				}
+				auto messages = td::move_tl_object_as<td_api::messages>(object);
+				std::cerr << "Found " << messages->total_count_ << " messages\n";
+				count = messages->total_count_;
+			}
+		  );
+	while(count == -1) {}
+	return count;
+
+}
+
 void Td::getContacts() {
   auto wait = true;
   send_query(td_api::make_object<td_api::getChats>(std::numeric_limits<std::int64_t>::max(), 0, 1000),

@@ -17,6 +17,7 @@
 
 Td td_tgfs;
 
+
 void split(std::vector<std::string> & tokens, const char *path) {
 	std::stringstream path_stream(path);
 	std::string token;
@@ -104,6 +105,14 @@ static int tgfs_getattr_chat(std::int64_t id_, std::string token, struct stat *s
 			// Some clever apps prefer to ignore file with zero size
 			stbuf->st_size = 100*1024;
 		}
+	} else if(token.compare("Documents") == 0) {
+		// Directory with documents
+		stbuf->st_mode = S_IFDIR | 0700;
+		stbuf->st_size = td_tgfs.search_msg_count(chat_it->first, DOCUMENTS);
+	} else if(token.compare("Audio") == 0) {
+		// Directory with documents
+		stbuf->st_mode = S_IFDIR | 0700;
+		stbuf->st_size = td_tgfs.search_msg_count(chat_it->first, AUDIO);
 	} else {
 		// Unknown
 		return -ENOENT;
@@ -147,9 +156,10 @@ static int tgfs_readdir_chat(std::int64_t id_, void* buf, fuse_fill_dir_t filler
 		return -ENOENT;
 	}
 	if(chat->second->photo_) {
-		std::string name = "photo";
 		filler(buf, "photo.jpg", NULL, 0);
 	}
+	filler(buf, "Documents", NULL, 0);
+	filler(buf, "Audio", NULL, 0);
 	return 0;
 }
 
@@ -163,11 +173,13 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 	std::map<std::int64_t, std::string>::iterator it;
 
 	if(tokens.size() == 0) {
+		// Root with chats
 		for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
 			filler(buf, it->second.c_str(), NULL, 0);
 		}
 		return 0;
 	} else if(tokens.size() == 1) {
+		// inside chat
 		for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
 			if(tokens[0].compare(it->second) == 0) {
 				return tgfs_readdir_chat(it->first, buf, filler);
@@ -175,8 +187,41 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 		}
 		return -ENOENT;
 	} else if(tokens.size() == 2) {
+		if(tokens[1].compare("Documents") == 0) {
+			for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
+				if(tokens[0].compare(it->second) == 0) {
+					td_tgfs.search_msg(it->first, DOCUMENTS);
+				}
+			}
+		}
 		return 0;
 	}
+	return -ENOENT;
+}
+
+static int tgfs_open_process_file(struct fuse_file_info *fi) {
+
+	// Process file
+	auto files_open_it = td_tgfs.files_open_.find(fi->fh); 	
+	if(files_open_it != td_tgfs.files_open_.end() && files_open_it->second->fd_ > 0) {
+		return 0;
+	}
+	if(td_tgfs.download_file(fi->fh, 1) == -1) {
+		return -ENOENT;
+	}
+	while(td_tgfs.files_[fi->fh]->local_->path_.empty()) {
+	}
+	if(td_tgfs.files_open_.find(fi->fh) == td_tgfs.files_open_.end()) {
+		//td_tgfs.files_open_.insert(std::make_pair(fi->fh, new Td_file_info()));
+		td_tgfs.files_open_[fi->fh] = new Td_file_info();
+	}
+	td_tgfs.files_open_[fi->fh]->filename_ = td_tgfs.files_[fi->fh]->local_->path_;
+	td_tgfs.files_open_[fi->fh]->open_file();
+
+	if(td_tgfs.files_open_[fi->fh]->fd_ > 0) {
+		return 0;
+	}
+	td_tgfs.files_open_[fi->fh]->close_file();
 	return -ENOENT;
 }
 
@@ -187,29 +232,11 @@ static int tgfs_open_chat(std::int64_t id_, std::string token, struct fuse_file_
 	}
 	if(token.compare("photo.jpg") == 0 && chat->second->photo_) {
 		fi->fh = chat->second->photo_->big_->id_;
-		auto files_open_it = td_tgfs.files_open_.find(fi->fh); 	
-		if(files_open_it != td_tgfs.files_open_.end() && files_open_it->second->fd_ > 0) {
-			return 0;
-		}
-		if(td_tgfs.download_file(fi->fh, 1) == -1) {
-			return -ENOENT;
-		}
-		while(td_tgfs.files_[fi->fh]->local_->path_.empty()) {
-		}
-		if(td_tgfs.files_open_.find(fi->fh) == td_tgfs.files_open_.end()) {
-			//td_tgfs.files_open_.insert(std::make_pair(fi->fh, new Td_file_info()));
-			td_tgfs.files_open_[fi->fh] = new Td_file_info();
-		}
-		td_tgfs.files_open_[fi->fh]->filename_ = td_tgfs.files_[fi->fh]->local_->path_;
-		td_tgfs.files_open_[fi->fh]->open_file();
-
-		if(td_tgfs.files_open_[fi->fh]->fd_ > 0) {
-			return 0;
-		}
-		td_tgfs.files_open_[fi->fh]->close_file();
-
+	} else {
+		return -ENOENT;
 	}
-	return -ENOENT;
+
+	return tgfs_open_process_file(fi);
 }
 
 static int tgfs_open(const char *path, struct fuse_file_info *fi) {

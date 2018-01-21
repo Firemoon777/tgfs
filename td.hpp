@@ -24,6 +24,11 @@
 
 namespace td_api = td::td_api;
 
+enum media_type {
+	DOCUMENTS,
+	AUDIO
+};
+
 class Td {
  public:
   Td();
@@ -51,6 +56,9 @@ class Td {
   std::map<std::int32_t, Td_file_info*> files_open_;
 
   int download_file(std::int32_t id_, std::int32_t p);
+
+  int search_msg_count(std::int64_t id_, media_type type);
+  void search_msg(std::int64_t id_, media_type type);
  private:
   void inner_loop();
   void send_query(td_api::object_ptr<td_api::Function> f, std::function<void(Object)> handler);
@@ -67,4 +75,5 @@ class Td {
 
   void check_authentication_error(Object object);
   std::uint64_t next_query_id();
+  td_api::object_ptr<td_api::SearchMessagesFilter> get_filter_by_type(media_type type);
 };
