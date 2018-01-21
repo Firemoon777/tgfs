@@ -58,6 +58,26 @@ void Td::inner_loop() {
 	}
 }
 
+int Td::downloadFile(std::int32_t id_, std::int32_t p) {
+	int fh = 0;
+	send_query(td_api::make_object<td_api::downloadFile>(id_, p),
+		[this, id_, &fh](Object object) {
+                     if (object->get_id() == td_api::error::ID) {
+		       auto error = td::move_tl_object_as<td_api::error>(object);
+		       std::cerr << "Error: " << to_string(error) << std::endl;
+		       fh = -1;
+                       return;
+                     }
+		     auto file = td::move_tl_object_as<td_api::file>(object);
+		     files_[id_] = std::move(file);
+		     fh = 1;  
+		}
+	);
+
+	while(fh == 0) {}
+	return fh;
+}
+
 void Td::getContacts() {
   auto wait = true;
   send_query(td_api::make_object<td_api::getChats>(std::numeric_limits<std::int64_t>::max(), 0, 1000),
@@ -67,7 +87,8 @@ void Td::getContacts() {
                      }
 		     auto chats = td::move_tl_object_as<td_api::chats>(object);
                      for (auto chat_id : chats->chat_ids_) {
-                      	std::cerr << "[id:" << chat_id << "] [title:" << chat_title_[chat_id] << "]" << std::endl;
+		     	if(chats_[chat_id]->title_.empty() == false) 	
+		     		chat_title_[chat_id] = chats_[chat_id]->title_;	
 		     }
 		     wait = false;
                    });
@@ -110,23 +131,18 @@ void Td::process_update(td_api::object_ptr<td_api::Object> update) {
                      on_authorization_state_update();
                    },
 		   [this](td_api::updateNewChat &update_new_chat) {
-                       chat_title_[update_new_chat.chat_->id_] = update_new_chat.chat_->title_;
 		       chats_[update_new_chat.chat_->id_] = std::move(update_new_chat.chat_);
                    },
                    [this](td_api::updateChatTitle &update_chat_title) {
-                     chat_title_[update_chat_title.chat_id_] = update_chat_title.title_;
+                   	if(chat_title_.find(update_chat_title.chat_id_) != chat_title_.end())
+		       		chat_title_[update_chat_title.chat_id_]	= update_chat_title.title_;
                    },
                    [this](td_api::updateUser &update_user) {
                      auto user_id = update_user.user_->id_;
                      users_[user_id] = std::move(update_user.user_);
                    },
-                   [this](td_api::updateNewMessage &update_new_message) {
-                     auto chat_id = update_new_message.message_->chat_id_;
-                     auto sender_user_name = update_new_message.message_->sender_user_id_;
-                     std::string text;
-                     if (update_new_message.message_->content_->get_id() == td_api::messageText::ID) {
-                       text = static_cast<td_api::messageText &>(*update_new_message.message_->content_).text_;
-                     }
+                   [this](td_api::updateNewMessage &update) {
+			chats_[update.message_->chat_id_]->last_message_ = std::move(update.message_);	
                    },
 		   [this](td_api::updateChatLastMessage &update) {
 			if(update.last_message_) {
@@ -135,6 +151,10 @@ void Td::process_update(td_api::object_ptr<td_api::Object> update) {
 		   },
 		   [this](td_api::updateChatReadInbox &update) {
 			chats_[update.chat_id_]->unread_count_ = update.unread_count_;
+		   },
+		   [this](td_api::updateFile &update) {
+			   std::cerr << "updateFile = " << update.file_->local_->path_ << std::endl;   
+			files_[update.file_->id_] = std::move(update.file_);
 		   },
                    [](auto &update) {}));
 }

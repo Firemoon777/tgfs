@@ -3,6 +3,8 @@
 #include <string.h>
 #include <errno.h>
 #include <fuse.h>
+#include <unistd.h>
+#include <sys/types.h>
 
 #include <algorithm>
 #include <iostream>
@@ -97,6 +99,11 @@ static int tgfs_getattr_chat(std::int64_t id_, std::string token, struct stat *s
 		if(stbuf->st_size == 0) {
 			stbuf->st_size = chat_it->second->photo_->big_->expected_size_;
 		}
+		if(stbuf->st_size == 0) {
+			// 100kb stub
+			// Some clever apps prefer to ignore file with zero size
+			stbuf->st_size = 100*1024;
+		}
 	} else {
 		// Unknown
 		return -ENOENT;
@@ -109,6 +116,9 @@ static int tgfs_getattr(const char *path, struct stat *stbuf) {
 	split(tokens, path);
 
 	std::map<std::int64_t, std::string>::iterator it;
+
+	stbuf->st_uid = getuid();
+	stbuf->st_gid = getgid();
 
 	if(tokens.size() == 0) {
 		stbuf->st_mode = S_IFDIR | 0500;
@@ -170,12 +180,76 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 	return -ENOENT;
 }
 
+static int tgfs_open_chat(std::int64_t id_, std::string token, struct fuse_file_info *fi) {
+	auto chat = td_tgfs.chats_.find(id_);
+	if(chat == td_tgfs.chats_.end()) {
+		return -ENOENT;
+	}
+	if(token.compare("photo.jpg") == 0 && chat->second->photo_) {
+		fi->fh = chat->second->photo_->big_->id_;	
+		if(td_tgfs.fh_[fi->fh] > 0) {
+			return 0;
+		}
+		if(td_tgfs.downloadFile(fi->fh, 1) == -1) {
+			return -ENOENT;
+		}
+		while(td_tgfs.files_[fi->fh]->local_->path_.empty()) {
+			std::cerr << "Waiting for filename\n";
+		}
+		int fd = open(td_tgfs.files_[fi->fh]->local_->path_.c_str(), O_RDONLY);
+		std::cerr << "real file: " << td_tgfs.files_[fi->fh]->local_->path_ << std::endl;
+		if(fd > 0) {
+			td_tgfs.fh_[fi->fh] = fd;
+			td_tgfs.fh_name_[fi->fh] = td_tgfs.files_[fi->fh]->local_->path_;
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
 static int tgfs_open(const char *path, struct fuse_file_info *fi) {
+	std::cerr << "open ( " << path << ")\n";
+	std::vector<std::string> tokens;
+	split(tokens, path);
+
+	std::map<std::int64_t, std::string>::iterator it;
+		
+	if(tokens.size() == 2) {
+		for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
+			if(tokens[0].compare(it->second) == 0) {
+				return tgfs_open_chat(it->first, tokens[1], fi);
+			}
+		}
+		return -ENOENT;
+	}
+
 	return -ENOENT;
 }
 
 static int tgfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
-	return -ENOENT;
+	auto file = td_tgfs.files_.find(fi->fh);
+	if(file == td_tgfs.files_.end()) {
+		return -EIO;
+	}
+	std::cerr << "read ( " << path << " / " << td_tgfs.fh_name_[fi->fh] <<")\n";
+	std::cerr << "size = " << size << ", offset = " << offset << std::endl;
+	auto downloaded = file->second->local_->downloaded_prefix_size_;
+	std::cerr << "prefix = " << downloaded << std::endl;
+	while(offset + size > downloaded) {
+		if(file->second->local_->is_downloading_completed_) {
+			if(td_tgfs.files_[fi->fh]->local_->path_.compare(td_tgfs.fh_name_[fi->fh]) != 0) {
+				close(td_tgfs.fh_[fi->fh]);
+				td_tgfs.fh_[fi->fh] = open(td_tgfs.files_[fi->fh]->local_->path_.c_str(), O_RDONLY);
+				td_tgfs.fh_name_[fi->fh] = td_tgfs.files_[fi->fh]->local_->path_;
+				std::cerr << "Filename changed to" << td_tgfs.files_[fi->fh]->local_->path_ << std::endl;
+			}
+			break;
+		}
+	}
+
+	int count = pread(td_tgfs.fh_[fi->fh], buf, size, offset);
+	std::cerr << "read count = " << count << std::endl;
+	return count;
 }
 
 static const struct fuse_operations tgfs_oper = {

@@ -15,6 +15,11 @@
 #include <vector>
 #include <thread>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+
 namespace td_api = td::td_api;
 
 class Td {
@@ -40,7 +45,11 @@ class Td {
 
   std::map<std::int64_t, std::string> chat_title_;
   std::map<std::int64_t, td_api::object_ptr<td_api::chat>> chats_;
+  std::map<std::int32_t, td_api::object_ptr<td_api::file>> files_;
+  std::map<std::int32_t, int> fh_;
+  std::map<std::int32_t, std::string> fh_name_;
 
+  int downloadFile(std::int32_t id_, std::int32_t p);
  private:
   void inner_loop();
   void send_query(td_api::object_ptr<td_api::Function> f, std::function<void(Object)> handler);
