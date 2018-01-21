@@ -58,7 +58,7 @@ void Td::inner_loop() {
 	}
 }
 
-int Td::downloadFile(std::int32_t id_, std::int32_t p) {
+int Td::download_file(std::int32_t id_, std::int32_t p) {
 	int fh = 0;
 	send_query(td_api::make_object<td_api::downloadFile>(id_, p),
 		[this, id_, &fh](Object object) {

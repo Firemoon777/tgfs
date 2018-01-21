@@ -186,23 +186,28 @@ static int tgfs_open_chat(std::int64_t id_, std::string token, struct fuse_file_
 		return -ENOENT;
 	}
 	if(token.compare("photo.jpg") == 0 && chat->second->photo_) {
-		fi->fh = chat->second->photo_->big_->id_;	
-		if(td_tgfs.fh_[fi->fh] > 0) {
+		fi->fh = chat->second->photo_->big_->id_;
+		auto files_open_it = td_tgfs.files_open_.find(fi->fh); 	
+		if(files_open_it != td_tgfs.files_open_.end() && files_open_it->second->fd_ > 0) {
 			return 0;
 		}
-		if(td_tgfs.downloadFile(fi->fh, 1) == -1) {
+		if(td_tgfs.download_file(fi->fh, 1) == -1) {
 			return -ENOENT;
 		}
 		while(td_tgfs.files_[fi->fh]->local_->path_.empty()) {
-			std::cerr << "Waiting for filename\n";
 		}
-		int fd = open(td_tgfs.files_[fi->fh]->local_->path_.c_str(), O_RDONLY);
-		std::cerr << "real file: " << td_tgfs.files_[fi->fh]->local_->path_ << std::endl;
-		if(fd > 0) {
-			td_tgfs.fh_[fi->fh] = fd;
-			td_tgfs.fh_name_[fi->fh] = td_tgfs.files_[fi->fh]->local_->path_;
+		if(td_tgfs.files_open_.find(fi->fh) == td_tgfs.files_open_.end()) {
+			//td_tgfs.files_open_.insert(std::make_pair(fi->fh, new Td_file_info()));
+			td_tgfs.files_open_[fi->fh] = new Td_file_info();
+		}
+		td_tgfs.files_open_[fi->fh]->filename_ = td_tgfs.files_[fi->fh]->local_->path_;
+		td_tgfs.files_open_[fi->fh]->open_file();
+
+		if(td_tgfs.files_open_[fi->fh]->fd_ > 0) {
 			return 0;
 		}
+		td_tgfs.files_open_[fi->fh]->close_file();
+
 	}
 	return -ENOENT;
 }
@@ -231,26 +236,26 @@ static int tgfs_read(const char *path, char *buf, size_t size, off_t offset, str
 	if(file == td_tgfs.files_.end()) {
 		return -EIO;
 	}
-	std::cerr << "read ( " << path << " / " << td_tgfs.fh_name_[fi->fh] <<")\n";
+	std::cerr << "read ( " << path << " / " << td_tgfs.files_open_[fi->fh]->filename_ <<")\n";
 	std::cerr << "size = " << size << ", offset = " << offset << std::endl;
 	auto downloaded = file->second->local_->downloaded_prefix_size_;
 	std::cerr << "prefix = " << downloaded << std::endl;
 	while(offset + size > downloaded) {
 		if(file->second->local_->is_downloading_completed_) {
-			if(td_tgfs.files_[fi->fh]->local_->path_.compare(td_tgfs.fh_name_[fi->fh]) != 0) {
-				//TODO: what concurrency? 
-				close(td_tgfs.fh_[fi->fh]);
-				td_tgfs.fh_[fi->fh] = open(td_tgfs.files_[fi->fh]->local_->path_.c_str(), O_RDONLY);
-				td_tgfs.fh_name_[fi->fh] = td_tgfs.files_[fi->fh]->local_->path_;
-				std::cerr << "Filename changed to" << td_tgfs.files_[fi->fh]->local_->path_ << std::endl;
-			}
+			td_tgfs.files_open_[fi->fh]->change_name_if_needed(td_tgfs.files_[fi->fh]->local_->path_);
 			break;
 		}
 	}
 
-	int count = pread(td_tgfs.fh_[fi->fh], buf, size, offset);
+	int count = pread(td_tgfs.files_open_[fi->fh]->fd_, buf, size, offset);
 	std::cerr << "read count = " << count << std::endl;
 	return count;
+}
+
+int tgfs_release(const char *path, struct fuse_file_info *fi) {
+	std::cerr << "release ( " << path << " / " << td_tgfs.files_open_[fi->fh]->filename_ <<")\n";
+	td_tgfs.files_open_[fi->fh]->close_file();
+	return -ENOENT;
 }
 
 static const struct fuse_operations tgfs_oper = {
@@ -258,6 +263,7 @@ static const struct fuse_operations tgfs_oper = {
 	.readdir	= tgfs_readdir,
 	.open		= tgfs_open,
 	.read		= tgfs_read,
+	.release	= tgfs_release
 };
 
 int main(int argc, char* argv[]) {
