@@ -238,6 +238,7 @@ static int tgfs_read(const char *path, char *buf, size_t size, off_t offset, str
 	while(offset + size > downloaded) {
 		if(file->second->local_->is_downloading_completed_) {
 			if(td_tgfs.files_[fi->fh]->local_->path_.compare(td_tgfs.fh_name_[fi->fh]) != 0) {
+				//TODO: what concurrency? 
 				close(td_tgfs.fh_[fi->fh]);
 				td_tgfs.fh_[fi->fh] = open(td_tgfs.files_[fi->fh]->local_->path_.c_str(), O_RDONLY);
 				td_tgfs.fh_name_[fi->fh] = td_tgfs.files_[fi->fh]->local_->path_;
