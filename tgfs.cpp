@@ -110,7 +110,7 @@ static int tgfs_getattr_chat(std::int64_t id_, std::string token, struct stat *s
 		stbuf->st_mode = S_IFDIR | 0700;
 		stbuf->st_size = td_tgfs.search_msg_count(chat_it->first, DOCUMENTS);
 	} else if(token.compare("Audio") == 0) {
-		// Directory with documents
+		// Directory with audio
 		stbuf->st_mode = S_IFDIR | 0700;
 		stbuf->st_size = td_tgfs.search_msg_count(chat_it->first, AUDIO);
 	} else {
@@ -118,6 +118,25 @@ static int tgfs_getattr_chat(std::int64_t id_, std::string token, struct stat *s
 		return -ENOENT;
 	}
 	return 0;
+}
+
+static int tgfs_getattr_attachments(std::int64_t id_, media_type media, std::string token, struct stat *stbuf) {
+	auto chat = td_tgfs.messages_.find(id_);
+	if(chat == td_tgfs.messages_.end()) {
+		return -ENOENT;
+	}
+	Td_chat* c = chat->second;
+	for(auto it = c->messages.begin(); it != c->messages.end(); it++) {
+		if(it->second->type_ == media && it->second->name_.compare(token) == 0) {
+			stbuf->st_ino = it->second->id_;
+			stbuf->st_mode = S_IFREG | 0600;
+			stbuf->st_size = it->second->size_;
+			stbuf->st_ctime = it->second->change_time_; 
+			stbuf->st_mtime = it->second->message_time_;
+			return 0;
+		}
+	}	
+	return -ENOENT;
 }
 
 static int tgfs_getattr(const char *path, struct stat *stbuf) {
@@ -130,19 +149,36 @@ static int tgfs_getattr(const char *path, struct stat *stbuf) {
 	stbuf->st_gid = getgid();
 
 	if(tokens.size() == 0) {
+		// Mount point
 		stbuf->st_mode = S_IFDIR | 0500;
 		stbuf->st_nlink = 2;
 		return 0;
 	} else if(tokens.size() == 1) {
+		// Root
 		for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
 			if(tokens[0].compare(it->second) == 0) {
 				return tgfs_getattr_root(it->first, stbuf);
 			}
 		}
 	} else if(tokens.size() == 2) {
+		// Chat
 		for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
 			if(tokens[0].compare(it->second) == 0) {
 				return tgfs_getattr_chat(it->first, tokens[1], stbuf);
+			}
+		}
+
+	} else if(tokens.size() == 3) {
+		// Attachment
+		media_type type;
+		if(tokens[1].compare("Audio") == 0) {
+			type = AUDIO;
+		} else if(tokens[1].compare("Documents") == 0) {
+			type = DOCUMENTS;
+		}
+		for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
+			if(tokens[0].compare(it->second) == 0) {
+				return tgfs_getattr_attachments(it->first, type, tokens[2], stbuf);
 			}
 		}
 
@@ -160,6 +196,20 @@ static int tgfs_readdir_chat(std::int64_t id_, void* buf, fuse_fill_dir_t filler
 	}
 	filler(buf, "Documents", NULL, 0);
 	filler(buf, "Audio", NULL, 0);
+	return 0;
+}
+
+static int tgfs_readdir_attachments(std::int64_t id_, media_type type, void* buf, fuse_fill_dir_t filler) {
+	auto chat = td_tgfs.messages_.find(id_);
+	if(chat == td_tgfs.messages_.end()) {
+		return -ENOENT;
+	}
+	Td_chat* c = chat->second;
+	for(auto it = c->messages.begin(); it != c->messages.end(); it++) {
+		if(it->second->type_ == type) {
+			filler(buf, it->second->name_.c_str(), NULL, 0);
+		}
+	}	
 	return 0;
 }
 
@@ -187,10 +237,19 @@ static int tgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 		}
 		return -ENOENT;
 	} else if(tokens.size() == 2) {
+		// Directories with attachments
 		if(tokens[1].compare("Documents") == 0) {
 			for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
 				if(tokens[0].compare(it->second) == 0) {
 					td_tgfs.search_msg(it->first, DOCUMENTS);
+					return tgfs_readdir_attachments(it->first, DOCUMENTS, buf, filler);
+				}
+			}
+		} else if(tokens[1].compare("Audio") == 0) {
+			for(it = td_tgfs.chat_title_.begin(); it != td_tgfs.chat_title_.end(); it++) {
+				if(tokens[0].compare(it->second) == 0) {
+					td_tgfs.search_msg(it->first, AUDIO);
+					return tgfs_readdir_attachments(it->first, AUDIO, buf, filler);
 				}
 			}
 		}
